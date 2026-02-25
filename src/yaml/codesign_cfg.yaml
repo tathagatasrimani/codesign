@@ -36,6 +36,7 @@ default:
     historical_trend_pipeline: False
     leakage_restriction: False
     MUL_restriction: False
+    shared_fu_logic: True
 
 
 vitis_test_mvs:

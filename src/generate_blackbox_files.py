@@ -173,7 +173,7 @@ def parse_blackbox_functions(cpp_file):
 def generate_json(func_info, cpp_filename, output_dir, latency, clk_period):
     """Generate JSON file for a blackbox function."""
     module_name = sim_util.get_module_map()[func_info['name']]
-    num_cycles = math.ceil(latency[module_name] / clk_period)
+    num_cycles = math.ceil(sim_util.mean_circuit_val(latency[module_name]) / clk_period)
     json_data = {
         "c_function_name": func_info['name'],
         "rtl_top_module_name": func_info['name'],

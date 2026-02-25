@@ -15,6 +15,7 @@ import sympy as sp
 from src.hardware_model.base_parameters import base_parameters
 from src.hardware_model.circuit_models import circuit_model
 from src.hardware_model.circuit_models import memory_model
+from src.hardware_model.circuit_models import logic_unit_model as lum_module
 
 from src import sim_util
 
@@ -92,9 +93,10 @@ class HardwareModel:
         self.constraints = []
         self.sensitivities = {}
 
-        self.block_vectors = {}    
+        self.block_vectors = {}
         self.memory_models = {}
         self.memory_mapping = {}
+        self.logic_unit_models = {}
 
     def reset_state(self):
         self.symbolic_buf = {}
@@ -145,11 +147,45 @@ class HardwareModel:
         # by convention, we should always access bulk model and base params through circuit model
         self.circuit_model = circuit_model.CircuitModel(self.tech_model, cfg=self.cfg)
         self.memory_models = {} # keyed by memory name
+        self.logic_unit_models = {} # keyed by name
 
     def set_memory_models(self, memory_mapping):
         self.memory_mapping = memory_mapping
         for memory_name, memory_info in memory_mapping["flattened"].items():
             self.memory_models[memory_name] = memory_model.MemoryModel(memory_info, name=memory_name)
+
+    def init_default_logic_unit_models(self, index=0):
+        """Initialize one default LogicUnitModel per function type at a given pareto index.
+
+        Used before the netlist is available so that circuit_values contain valid
+        (non-empty) entries.  Real per-resource models replace these once
+        set_logic_unit_models() is called after netlist parsing.
+        """
+        precomputed = lum_module.precompute_pareto_values(self.circuit_model.tech_model)
+        n = len(precomputed["delay"])
+        index = max(0, min(index, n - 1))
+        logic_fns = set(self.circuit_model.coeffs["gamma"].keys())
+        self.logic_unit_models = {}
+        for fn in logic_fns:
+            lum = lum_module.LogicUnitModel(precomputed, f"{fn}_default", fn)
+            lum.set_design_point(index)
+            self.logic_unit_models[f"{fn}_default"] = lum
+        self.circuit_model.set_logic_unit_models(self.logic_unit_models)
+
+    def set_logic_unit_models(self):
+        """Create one LogicUnitModel per unique logic FU resource in the netlist."""
+        precomputed = lum_module.precompute_pareto_values(self.circuit_model.tech_model)
+        logic_fns = set(self.circuit_model.coeffs["gamma"].keys())
+        self.logic_unit_models = {}
+        for node, data in self.netlist.nodes(data=True):
+            fn = data.get("function", "N/A")
+            rsc = data.get("name", None)
+            logger.info(f"fn: {fn}, rsc: {rsc}")
+            if fn in logic_fns and rsc and rsc not in self.logic_unit_models:
+                self.logic_unit_models[rsc] = lum_module.LogicUnitModel(precomputed, rsc, fn)
+            #elif fn in
+        self.circuit_model.set_logic_unit_models(self.logic_unit_models)
+        logger.info(f"Created {len(self.logic_unit_models)} LogicUnitModel instances from netlist")
 
     def calculate_minimum_clk_period(self):
         self.minimum_clk_period = sim_util.xreplace_safe(self.circuit_model.DFF_DELAY, self.circuit_model.tech_model.base_params.tech_values)
@@ -212,35 +248,7 @@ class HardwareModel:
                 "passive power": self.total_passive_energy/execution_time,
                 "active power": self.total_active_energy/execution_time,
                 "total power": (self.total_active_energy + self.total_passive_energy)/execution_time,
-                "area": self.circuit_model.tech_model.param_db["A_gate"],
-                "delay": self.circuit_model.tech_model.delay,
-                "gate length": self.circuit_model.tech_model.param_db["L"],
-                "gate width": self.circuit_model.tech_model.param_db["W"],
-                "C_load": self.circuit_model.tech_model.param_db["C_load"],
-                "Inverter VTC gain": self.circuit_model.tech_model.param_db["slope_at_crossing"],
-                "R_avg_inv": self.circuit_model.tech_model.param_db["R_avg_inv"],
-                "E_act_inv": self.circuit_model.tech_model.E_act_inv,
-                "P_pass_inv": self.circuit_model.tech_model.P_pass_inv,
-                "Ieff": self.circuit_model.tech_model.param_db["Ieff"],
-                "Ioff": self.circuit_model.tech_model.param_db["Ioff"],
-                "supply voltage": self.circuit_model.tech_model.param_db["V_dd"],
-                "effective threshold voltage": self.circuit_model.tech_model.param_db["V_th_eff"],
-                "DIBL factor": self.circuit_model.tech_model.param_db["delta"],
-                "n0": self.circuit_model.tech_model.param_db["n0"],
-                "scale length": self.circuit_model.tech_model.param_db["Lscale"],
-                "GEO": self.circuit_model.tech_model.param_db["GEO"],
-                "MUL": self.circuit_model.tech_model.param_db["MUL"],
-                "t_ox": self.circuit_model.tech_model.param_db["tox"],
-                "tsemi": self.circuit_model.tech_model.param_db["tsemi"],
-                "eot": self.circuit_model.tech_model.param_db["eot"],
-                "eot_corrected": self.circuit_model.tech_model.param_db["eot_corrected"],
-                "k_gate": self.circuit_model.tech_model.param_db["k_gate"],
-                "NM_H": self.circuit_model.tech_model.param_db["NM_H"],
-                "NM_L": self.circuit_model.tech_model.param_db["NM_L"],
-                "noise_margin": self.circuit_model.tech_model.param_db["noise_margin"],
-                "multiplier delay": self.circuit_model.symbolic_latency_wc["Mult16"](),
                 "clk_period": self.circuit_model.tech_model.base_params.clk_period,
-                #"scaled power": self.total_passive_power * self.circuit_model.tech_model.capped_power_scale_total + self.total_active_energy/(execution_time * self.circuit_model.tech_model.capped_delay_scale_total),
                 "m1_Rsq": self.circuit_model.tech_model.m1_Rsq,
                 "m2_Rsq": self.circuit_model.tech_model.m2_Rsq,
                 "m3_Rsq": self.circuit_model.tech_model.m3_Rsq,
@@ -266,6 +274,13 @@ class HardwareModel:
                     if col is not None:
                         self.obj_sub_exprs[f"mem_{mem_name}_{label}"] = row[col]
                 self.obj_sub_exprs[f"mem_{mem_name}_capacity"] = mem_model.total_size_bits
+            for fu_name, lum in self.logic_unit_models.items():
+                row = lum.get_design_point_row()
+                self.obj_sub_exprs[f"fu_{fu_name}_index"]     = row["index"]
+                self.obj_sub_exprs[f"fu_{fu_name}_delay"]     = row["delay"]
+                self.obj_sub_exprs[f"fu_{fu_name}_Eactinv"] = row["E_act_inv"]
+                self.obj_sub_exprs[f"fu_{fu_name}_Ppassinv"]= row["P_pass_inv"]
+                self.obj_sub_exprs[f"fu_{fu_name}_area"]      = row["area"]
         else:
             raise ValueError(f"Model type {self.circuit_model.tech_model.model_cfg['model_type']} not supported")
         self.obj_sub_plot_names = {
@@ -278,78 +293,21 @@ class HardwareModel:
             "NM_H": "Noise Margin High over generations (V)",
             "NM_L": "Noise Margin Low over generations (V)",
             "noise_margin": "Noise Margin over generations (V)",
-            "E_act_inv": "Dynamic Energy per Inverter over generations (J)",
-            "R_avg_inv": "Inverter average resistance over generations (Ohm)",
-            "P_pass_inv": "Passive Power per Inverter over generations (W)",
-            "subthreshold leakage current": "Subthreshold Leakage Current over generations (nA)",
-            "long channel threshold voltage": "Long Channel Threshold Voltage (V)",
             "effective threshold voltage": "Effective Threshold Voltage over generations (V)",
-            "effective threshold voltage worst case": "Effective Threshold Voltage Worst Case over generations (V)",
-            "Inverter VTC gain": "Slope of Inverter VTC at Vout=Vin over generations (V/V)",
             "supply voltage": "Supply Voltage over generations (V)",
             "GEO": "GEO flag over generations",
             "MUL": "MUL flag over generations",
-            "wire RC": "Wire RC over generations (s)",
-            "on current per um": "On Current per um over generations (A/um)",
-            "off current per um": "Off Current per um over generations (A/um)",
-            "off current worst case per um": "Off Current Worst Case per um over generations (A/um)",
-            "gate tunneling current per um": "Gate Tunneling Current per um over generations (A/um)",
-            "subthreshold leakage current per um": "Subthreshold Leakage Current per um over generations (A/um)",
-            "subthreshold leakage current worst case per um": "Subthreshold Leakage Current Worst Case per um over generations (A/um)",
             "DIBL factor": "DIBL Factor over generations (V/V)",
-            "SS": "Subthreshold Slope over generations (V/V)",
             "n0": "n0 over generations",
-            "Vth_rolloff": "Vth Rolloff over generations (V)",
-            "dVt": "total threshold voltage shift over generations (V)",
             "t_ox": "Gate Oxide Thickness over generations (m)",
             "eot": "Electrical Oxide Thickness over generations (m)",
             "eot_corrected": "Electrical Oxide Thickness Corrected over generations (m)",
             "scale length": "Scale Length over generations (m)",
-            "C_load": "Load Capacitance over generations (F)",
-            "C_wire": "Wire Capacitance over generations (F)",
-            "R_wire": "Wire Resistance over generations (Ohm)",
-            "R_device": "Device Resistance over generations (Ohm)",
-            "F_f": "F_f over generations",
-            "F_s": "F_s over generations",
-            "vx0": "virtual source injection velocity over generations (m/s)",
-            "v": "effective injection velocity over generations (m/s)",
-            "t_1": "T1 over generations (s)",
             "clk_period": "Clock Period over generations (ns)",
-            "f": "Frequency over generations (Hz)",
-            "parasitic capacitance": "Parasitic Capacitance over generations (F)",
-            "L_ov": "L_ov over generations (m)",
-            "R_s": "R_s over generations (Ohm)",
-            "R_d": "R_d over generations (Ohm)",
-            "Vth_rolloff": "Vth Rolloff over generations (V)",
-            "d": "CNT diameter over generations (m)",
-            "L_c": "Contact length over generations (m)",
-            "Lext": "Extension length over generations (m)",
-            "H_c": "Contact height over generations (m)",
-            "H_g": "CNT gate height over generations (m)",
-            "k_cnt": "CNT Dielectric Constant over generations (F/m)",
             "k_gate": "Gate Dielectric Constant over generations (F/m)",
-            "eps_cap": "Capacitor Dielectric Constant over generations (F/m)",
-            "eps_semi": "Semiconductor Dielectric Constant over generations (F/m)",
             "tsemi": "Semiconductor Thickness over generations (m)",
-            "rho_c_n": "n-type Contact Resistance over generations (Ohm-m)",
-            "rho_c_p": "p-type Contact Resistance over generations (Ohm-m)",
-            "Rsh_c_n": "n-type Shunt Resistance over generations (Ohm)",
-            "Rsh_c_p": "p-type Shunt Resistance over generations (Ohm)",
-            "Rsh_ext_n": "n-type External Shunt Resistance over generations (Ohm)",
-            "Rsh_ext_p": "p-type External Shunt Resistance over generations (Ohm)",
-            "Ieff_n": "nMOS Effective Current over generations (A)",
-            "Ieff_p": "pMOS Effective Current over generations (A)",
-            "Ioff_n": "nMOS Off Current over generations (A)",
-            "Ioff_p": "pMOS Off Current over generations (A)",
             "Ioff": "Off Current over generations (A)",
             "Ieff": "Effective Current over generations (A)",
-            "Cload": "Load Capacitance over generations (F)",
-            "mu_eff_n": "nMOS Effective Mobility over generations (m^2/V-s)",
-            "mu_eff_p": "pMOS Effective Mobility over generations (m^2/V-s)",
-            "area": "device area over generations (m^2)",
-            "delay": "Transistor Delay over generations (s)",
-            "multiplier delay": "Multiplier Delay over generations (s)",
-            "scaled power": "Scaled Power over generations (W)",
             "m1_Rsq": "Metal 1 Resistance per Square over generations (Ohm/m)",
             "m2_Rsq": "Metal 2 Resistance per Square over generations (Ohm/m)",
             "m3_Rsq": "Metal 3 Resistance per Square over generations (Ohm/m)",
@@ -371,6 +329,13 @@ class HardwareModel:
             self.obj_sub_plot_names[f"mem_{mem_name}_latency"] = f"Memory {mem_name} latency over generations (ns)"
             self.obj_sub_plot_names[f"mem_{mem_name}_leakage"] = f"Memory {mem_name} leakage over generations (mW)"
             self.obj_sub_plot_names[f"mem_{mem_name}_capacity"] = f"Memory {mem_name} capacity over generations (KB)"
+        for fu_name, lum in self.logic_unit_models.items():
+            fn = lum.function
+            self.obj_sub_plot_names[f"fu_{fu_name}_index"]     = f"FU {fu_name} ({fn}) design point index over generations"
+            self.obj_sub_plot_names[f"fu_{fu_name}_delay"]     = f"FU {fu_name} ({fn}) delay over generations (s)"
+            self.obj_sub_plot_names[f"fu_{fu_name}_Eactinv"] = f"FU {fu_name} ({fn}) dynamic energy over generations (J)"
+            self.obj_sub_plot_names[f"fu_{fu_name}_Ppassinv"]= f"FU {fu_name} ({fn}) passive power over generations (W)"
+            self.obj_sub_plot_names[f"fu_{fu_name}_area"]      = f"FU {fu_name} ({fn}) area over generations (m^2)"
 
     def calculate_objective(self, form_dfg=True, log_top_vectors=False, clk_period_opt=False):
         start_time = time.time()
@@ -404,4 +369,29 @@ class HardwareModel:
         sub_exprs["total energy"] = float(total_energy_val)
         sub_exprs["passive energy"] = float(passive_energy_val)
         sub_exprs["active energy"] = float(active_energy_val)
-        print(f"{message}\n {self.obj_fn}: {obj}, sub expressions: {sub_exprs}")
+        # Group sub_exprs by unit for readable output
+        system_entries = {}
+        mem_groups = {}
+        fu_groups = {}
+        energy_entries = {}
+        for key, val in sub_exprs.items():
+            if key.startswith("mem_"):
+                unit_name = key.split("_")[1]
+                mem_groups.setdefault(unit_name, {})[key] = val
+            elif key.startswith("fu_"):
+                unit_name = '_'.join(key.split("_")[1:-1])
+                fu_groups.setdefault(unit_name, {})[key] = val
+            elif key in ("total energy", "passive energy", "active energy"):
+                energy_entries[key] = val
+            else:
+                system_entries[key] = val
+        lines = [f"{message}", f" {self.obj_fn}: {obj}"]
+        if system_entries:
+            lines.append(f"  system: {system_entries}")
+        for unit_name, entries in mem_groups.items():
+            lines.append(f"  mem/{unit_name}: {entries}")
+        for unit_name, entries in fu_groups.items():
+            lines.append(f"  fu/{unit_name}: {entries}")
+        if energy_entries:
+            lines.append(f"  energy: {energy_entries}")
+        print("\n".join(lines))

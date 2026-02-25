@@ -99,6 +99,7 @@ class ObjectiveEvaluator:
         DFF_PASSIVE_POWER: float,
         DFF_AREA: float,
         mem_access_db: Dict[str, Any] = None,
+        logic_unit_models: Dict[str, Any] = None,
     ):
         """
         Initialize the ObjectiveEvaluator.
@@ -134,6 +135,7 @@ class ObjectiveEvaluator:
         #                              first_read,  read_basic_block_name}
         # Node labels are "<block_name>_<name_in_original_graph>".
         self.mem_access_db = mem_access_db or {}
+        self.logic_unit_models = logic_unit_models or {}
         self.first_write_times = {}
         self.first_write_blocks = {}
         self.last_read_times = {}
@@ -205,12 +207,13 @@ class ObjectiveEvaluator:
             DFF_PASSIVE_POWER=hw.circuit_model.DFF_PASSIVE_POWER,
             DFF_AREA=hw.circuit_model.DFF_AREA,
             mem_access_db=hw.mem_access_db,
+            logic_unit_models=hw.logic_unit_models,
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
-        """Update tech and memory models from a design point.
+        """Update tech, memory, and per-FU logic models from a design point.
 
-        Expects design_point = {"logic": {...}, "memory": {...}}.
+        Expects design_point = {"logic": {...}, "memory": {...}, "fu_logic": {...}}.
         Falls back to treating the whole dict as logic params if "logic" key is absent.
         """
         self.tech_model.set_params_from_design_point(design_point)
@@ -218,6 +221,10 @@ class ObjectiveEvaluator:
         for mem_name, memory_model in self.memory_models.items():
             if mem_name in memory_config:
                 memory_model.set_design_point(memory_config[mem_name])
+        fu_logic_config = design_point.get("fu_logic", {})
+        for rsc_name, lum in self.logic_unit_models.items():
+            if rsc_name in fu_logic_config:
+                lum.set_design_point(fu_logic_config[rsc_name])
 
     def set_clk_period(self, clk_period: float):
         """Set the clock period."""
@@ -532,7 +539,22 @@ class ObjectiveEvaluator:
 
         return wire_delay * 1e9  # Convert to ns
 
-    def _latency(self, op_type: str, node_data: dict = None) -> float:
+    def _get_fu_params(self, fn: str, node_data):
+        """Return (delay, E_act_inv, P_pass_inv, area) for a node."""
+        if "rsc" in node_data:
+            rsc = node_data["rsc"] # if working with dfg
+        else:
+            rsc = node_data["name"] # if working with netlist
+        assert rsc is not None, f"no per-FU model for fn={fn}, rsc={rsc}, node_data: {node_data}"
+        if rsc not in self.logic_unit_models:
+            if fn == "Register16" and node_data.get("mem_name") in self.logic_unit_models: # registers sometimes treated differently in netlist
+                rsc = node_data.get("mem_name")
+            else:
+                raise ValueError(f"no per-FU model for fn={fn}, rsc={rsc}, node_data: {node_data}")
+        lum = self.logic_unit_models[rsc]
+        return lum.delay, lum.E_act_inv, lum.P_pass_inv, lum.area
+
+    def _latency(self, op_type: str, node_data) -> float:
         """Calculate latency for an operation type.
 
         For memory ops (load/store/read/write) with a named memory (mem_name != 'N/A'),
@@ -553,8 +575,7 @@ class ObjectiveEvaluator:
 
         if op_type not in self.gamma:
             return 0.0
-        tv = self.tech_model.base_params.tech_values
-        delay = sim_util.xreplace_safe(self.tech_model.delay, tv)
+        delay, _, _, _ = self._get_fu_params(op_type, node_data)
         return math.ceil(self.gamma[op_type] * delay)
 
     def _count_ops(self) -> tuple:
@@ -723,17 +744,16 @@ class ObjectiveEvaluator:
         if function not in self.alpha:
             return 0.0
 
-        tv = self.tech_model.base_params.tech_values
+        delay, E_act_inv, _, _ = self._get_fu_params(function, node_data)
         alpha = self.alpha[function]
-        E_act_inv = sim_util.xreplace_safe(self.tech_model.E_act_inv, tv)
 
         # Unpipelined energy
         unpipelined_energy = alpha * E_act_inv
 
-        # Pipeline cost (DFF energy for additional cycles)
-        DFF_ENERGY = 20 * E_act_inv  # ~20 inverters worth
-        delay = sim_util.xreplace_safe(self.tech_model.delay, tv)
-        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, tv)
+        # Pipeline cost (DFF energy for additional cycles); DFF_ENERGY uses per-FU E_act_inv
+        DFF_ENERGY = 20 * E_act_inv
+        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period,
+                                             self.tech_model.base_params.tech_values)
 
         lat_cycles = math.ceil(self.gamma[function] * delay)
         if clk_period > 0:
@@ -851,17 +871,16 @@ class ObjectiveEvaluator:
         if function not in self.beta:
             return 0.0
 
-        tv = self.tech_model.base_params.tech_values
+        delay, _, P_pass_inv, _ = self._get_fu_params(function, node_data)
         beta = self.beta[function]
-        P_pass_inv = sim_util.xreplace_safe(self.tech_model.P_pass_inv, tv)
 
         # Unpipelined passive power
         unpipelined_power = beta * P_pass_inv
 
-        # Pipeline cost (DFF passive power for additional cycles)
-        DFF_PASSIVE_POWER = 20 * P_pass_inv  # ~20 inverters worth
-        delay = sim_util.xreplace_safe(self.tech_model.delay, tv)
-        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, tv)
+        # Pipeline cost (DFF passive power for additional cycles); uses per-FU P_pass_inv
+        DFF_PASSIVE_POWER = 20 * P_pass_inv
+        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period,
+                                             self.tech_model.base_params.tech_values)
 
         lat_cycles = math.ceil(self.gamma.get(function, 0) * delay)
         if clk_period > 0:
@@ -917,8 +936,8 @@ class ObjectiveEvaluator:
 
         if function in ["N/A", "Call"]:
             return 0.0
-        tv = self.tech_model.base_params.tech_values
+        _, _, _, fu_area = self._get_fu_params(function, node_data)
         area_coeff = self.area_coeffs[function] * 500/7 # TODO: arbitrary, should fix the area coeffs at some point
-        area = area_coeff * self.tech_model.base_params.area
-        pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self._latency(function)/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
+        area = area_coeff * fu_area
+        pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self._latency(function, node_data)/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
         return area + pipeline_cost

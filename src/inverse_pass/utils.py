@@ -570,6 +570,97 @@ def visualize_top_memory_designs(
                 plt.show()
 
 
+def visualize_top_fu_designs(
+    top_results: List[DesignPointResult],
+    iteration: int,
+    obj_type: str,
+    colors: List[float],
+    output_dir: str = None,
+):
+    """
+    Create 3D scatter plots for FU logic design choices among the top results.
+
+    For each FU resource where the design point index varies across the top results,
+    plots delay vs E_act_inv vs P_pass_inv (log10 scale) colored by objective value —
+    matching the style of the aggregate logic delay/energy/power 3D plot.
+    FU resources where all top results chose the same design point are skipped.
+    """
+    fu_entries = {}
+    for r, color in zip(top_results, colors):
+        for fu_name, fu_info in r.design_point.get("fu_logic", {}).items():
+            if not isinstance(fu_info, dict):
+                continue
+            fu_entries.setdefault(fu_name, []).append((fu_info, color))
+
+    eps = 1e-30
+    for fu_name, entries in fu_entries.items():
+        fu_infos  = [e[0] for e in entries]
+        fu_colors = [e[1] for e in entries]
+
+        if len({e.get("index") for e in fu_infos}) <= 1:
+            continue
+
+        delays   = np.array([float(m.get("delay",      0)) + eps for m in fu_infos])
+        energies = np.array([float(m.get("E_act_inv",  0)) + eps for m in fu_infos])
+        powers   = np.array([float(m.get("P_pass_inv", 0)) + eps for m in fu_infos])
+        log_delays   = np.log10(delays)
+        log_energies = np.log10(energies)
+        log_powers   = np.log10(powers)
+
+        function  = fu_infos[0].get("function", fu_name)
+        best_idx  = 0
+        other_idx = list(range(1, len(fu_infos)))
+
+        plt.rcdefaults()
+        fig = plt.figure(figsize=(9, 6))
+        ax  = fig.add_subplot(111, projection='3d', computed_zorder=False)
+
+        if other_idx:
+            scatter = ax.scatter(
+                log_delays[other_idx], log_energies[other_idx], log_powers[other_idx],
+                c=[fu_colors[i] for i in other_idx],
+                cmap='viridis_r', s=100, alpha=0.75,
+                edgecolors='white', linewidths=0.3, zorder=1,
+            )
+        else:
+            scatter = ax.scatter([], [], [], c=[], cmap='viridis_r')
+        ax.scatter([], [], [], c='gray', s=100, alpha=0.75,
+                   edgecolors='white', label='Valid Design')
+        ax.scatter([log_delays[best_idx]], [log_energies[best_idx]], [log_powers[best_idx]],
+                   c='red', s=600, marker='*', label='Best Design',
+                   edgecolors='black', linewidths=2, zorder=100)
+
+        ax.set_xlabel('Delay [log₁₀]',   fontsize=14, labelpad=8, fontweight='bold')
+        ax.set_ylabel('E_act [log₁₀]',   fontsize=14, labelpad=8, fontweight='bold')
+        ax.set_zlabel('P_pass [log₁₀]',  fontsize=14, labelpad=8, fontweight='bold')
+        ax.tick_params(axis='x', labelsize=11, pad=5)
+        ax.tick_params(axis='y', labelsize=11, pad=5)
+        ax.tick_params(axis='z', labelsize=11, pad=5)
+        ax.view_init(elev=20, azim=45)
+
+        ax.set_title(f'FU Design Space: {fu_name} ({function})  (log₁₀ scale)',
+                     fontsize=15, fontweight='bold', pad=10)
+        ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
+
+        title_txt = f'System {obj_type.upper()}'
+        cbar = fig.colorbar(scatter, ax=ax, shrink=0.6, pad=0.02, aspect=25)
+        cbar.set_label(title_txt, fontsize=14, labelpad=2, fontweight='bold')
+        cbar.set_ticks([0, 1])
+        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        cbar.ax.invert_yaxis()
+        cbar.ax.tick_params(labelsize=12)
+
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            safe_name = fu_name.replace('/', '_').replace(' ', '_')
+            filepath = os.path.join(output_dir, f'fu_{safe_name}_delay_energy_power_iter_{iteration}.png')
+            plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white', pad_inches=0.5)
+            logger.info(f"Saved FU design plot for '{fu_name}' ({function}) to {filepath}")
+            plt.close(fig)
+        else:
+            plt.show()
+
+
 def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, obj_type: str, top_percent: float = 0.1, output_dir: str = None):
     """
     Create visualizations of the top designs by objective value.
@@ -596,7 +687,7 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
 
     if not valid_results:
         logger.warning("No valid designs to visualize")
-        return
+        return None, None
 
     # Sort by objective value (ascending = better)
     sorted_results = sorted(valid_results, key=lambda r: r.obj_value)
@@ -622,32 +713,7 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     else:
         colors = [0.0] * len(obj_values)
 
-    # --- Plot 1: 2D scatter of Ieff vs Ioff ---
-    plot_2d_scatter(
-        top_results=top_results,
-        x_attr='Ieff',
-        y_attr='Ioff',
-        x_label='Ieff (A)',
-        y_label='Ioff (A)',
-        title=f'Design Space Map: Ieff vs Ioff',
-        filename='ieff_ioff_2d',
-        colors=colors,
-        iteration=iteration,
-        top_percent=top_percent,
-        n_top=n_top,
-        n_valid=len(valid_results),
-        obj_type=obj_type,
-        output_dir=output_dir,
-        eps=eps,
-        log_scale=True
-    )
-
-    # --- Plot 2: 3D scatter of delay vs dynamic energy vs passive power ---
-    # Note: matplotlib 3D axes don't support set_xscale('log'), so we manually transform to log10
-    delays = np.array([r.delay + eps for r in top_results])
-    dynamic_energies = np.array([r.dynamic_energy + eps for r in top_results])
-    passive_powers = np.array([r.leakage_power + eps for r in top_results])
-
+    # 2D: delay vs passive power
     plot_2d_scatter(
         top_results=top_results,
         x_attr='delay',
@@ -666,42 +732,13 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         eps=eps,
         log_scale=True
     )
-    
-    # Line plots for delay and passive power
-    plot_metric_lines(
-        top_results=top_results,
-        metrics=['L', 'W', 'V_dd', 'V_th', 'tox'],
-        labels=['L (m)', 'W (m)', 'V_dd (V)', 'V_th (V)', 'tox (m)'],
-        title_prefix='Design Space Map',
-        filename_prefix='L_W_V_dd_V_th_tox',
-        colors=colors,
-        iteration=iteration,
-        top_percent=top_percent,
-        n_top=n_top,
-        n_valid=len(valid_results),
-        obj_type=obj_type,
-        output_dir=output_dir,
-        eps=eps,
-        scale=['log', 'log', 'linear', 'linear', 'log']
-    )
-    plot_2d_scatter(
-        top_results=top_results,
-        x_attr='dynamic_energy',
-        y_attr='leakage_power',
-        x_label='Dynamic Energy (J)',
-        y_label='Leakage Power (W)',
-        title=f'Design Space Map: Dynamic Energy vs Leakage Power',
-        filename='dynamic_energy_leakage_power_2d',
-        colors=colors,
-        iteration=iteration,
-        top_percent=top_percent,
-        n_top=n_top,
-        n_valid=len(valid_results),
-        obj_type=obj_type,
-        output_dir=output_dir,
-        eps=eps,
-        log_scale=True
-    )
+
+    # 3D: delay vs dynamic energy vs passive power
+    # Note: matplotlib 3D axes don't support set_xscale('log'), so we manually transform to log10
+    delays = np.array([r.delay + eps for r in top_results])
+    dynamic_energies = np.array([r.dynamic_energy + eps for r in top_results])
+    passive_powers = np.array([r.leakage_power + eps for r in top_results])
+
     # Transform to log10 for plotting
     log_delays = np.log10(delays)
     log_dynamic = np.log10(dynamic_energies)
@@ -805,10 +842,7 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     else:
         plt.show()
 
-    visualize_top_memory_designs(top_results, iteration, obj_type, colors, output_dir=output_dir)
-    visualize_memory_latency_scatter(top_results, iteration, obj_type, colors, output_dir=output_dir)
-
-    return top_results
+    return top_results, colors
 
 
 def regenerate_plots_from_log_dir(log_dir: str, obj_type: str = "edp", top_percent: float = 1):
@@ -838,5 +872,46 @@ def regenerate_plots_from_log_dir(log_dir: str, obj_type: str = "edp", top_perce
             all_results: List[DesignPointResult] = pickle.load(f)
 
         logger.info(f"Regenerating plots for iteration {iteration} ({len(all_results)} results) from {pkl_path}")
-        visualize_top_designs(all_results, iteration, obj_type,
-                              top_percent=top_percent, output_dir=log_dir)
+        top_results, colors = visualize_top_designs(all_results, iteration, obj_type,
+                                                    top_percent=top_percent, output_dir=log_dir)
+        if top_results is None:
+            continue
+
+        n_top = len(top_results)
+        n_valid = len(all_results)
+        eps = 1e-30
+
+        plot_2d_scatter(
+            top_results=top_results,
+            x_attr='Ieff', y_attr='Ioff',
+            x_label='Ieff (A)', y_label='Ioff (A)',
+            title='Design Space Map: Ieff vs Ioff',
+            filename='ieff_ioff_2d',
+            colors=colors, iteration=iteration,
+            top_percent=top_percent, n_top=n_top, n_valid=n_valid,
+            obj_type=obj_type, output_dir=log_dir, eps=eps, log_scale=True,
+        )
+        plot_2d_scatter(
+            top_results=top_results,
+            x_attr='dynamic_energy', y_attr='leakage_power',
+            x_label='Dynamic Energy (J)', y_label='Leakage Power (W)',
+            title='Design Space Map: Dynamic Energy vs Leakage Power',
+            filename='dynamic_energy_leakage_power_2d',
+            colors=colors, iteration=iteration,
+            top_percent=top_percent, n_top=n_top, n_valid=n_valid,
+            obj_type=obj_type, output_dir=log_dir, eps=eps, log_scale=True,
+        )
+        plot_metric_lines(
+            top_results=top_results,
+            metrics=['L', 'W', 'V_dd', 'V_th', 'tox'],
+            labels=['L (m)', 'W (m)', 'V_dd (V)', 'V_th (V)', 'tox (m)'],
+            title_prefix='Design Space Map',
+            filename_prefix='L_W_V_dd_V_th_tox',
+            colors=colors, iteration=iteration,
+            top_percent=top_percent, n_top=n_top, n_valid=n_valid,
+            obj_type=obj_type, output_dir=log_dir, eps=eps,
+            scale=['log', 'log', 'linear', 'linear', 'log'],
+        )
+        visualize_top_memory_designs(top_results, iteration, obj_type, colors, output_dir=log_dir)
+        visualize_memory_latency_scatter(top_results, iteration, obj_type, colors, output_dir=log_dir)
+        visualize_top_fu_designs(top_results, iteration, obj_type, colors, output_dir=log_dir)

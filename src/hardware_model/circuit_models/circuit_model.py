@@ -37,31 +37,28 @@ class CircuitModel:
 
         # UNITS: ns
         self.symbolic_latency_wc = {
-            "And16": lambda: self.make_sym_lat_wc(self.gamma["And16"]),
-            "Or16": lambda: self.make_sym_lat_wc(self.gamma["Or16"]),
-            "Add16": lambda: self.make_sym_lat_wc(self.gamma["Add16"]),
-            "Sub16": lambda: self.make_sym_lat_wc(self.gamma["Sub16"]),
-            "Mult16": lambda: self.make_sym_lat_wc(self.gamma["Mult16"]),
-            "FloorDiv16": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv16"]),
-            "Modulus16": lambda: self.make_sym_lat_wc(self.gamma["Modulus16"]),
-            "LShift16": lambda: self.make_sym_lat_wc(self.gamma["LShift16"]),
-            "RShift16": lambda: self.make_sym_lat_wc(self.gamma["RShift16"]),
-            "BitOr16": lambda: self.make_sym_lat_wc(self.gamma["BitOr16"]),
-            "BitXor16": lambda: self.make_sym_lat_wc(self.gamma["BitXor16"]),
-            "BitAnd16": lambda: self.make_sym_lat_wc(self.gamma["BitAnd16"]),
-            "Eq16": lambda: self.make_sym_lat_wc(self.gamma["Eq16"]),
-            "NotEq16": lambda: self.make_sym_lat_wc(self.gamma["NotEq16"]),
-            "Lt16": lambda: self.make_sym_lat_wc(self.gamma["Lt16"]),
-            "LtE16": lambda: self.make_sym_lat_wc(self.gamma["LtE16"]),
-            "Gt16": lambda: self.make_sym_lat_wc(self.gamma["Gt16"]),
-            "GtE16": lambda: self.make_sym_lat_wc(self.gamma["GtE16"]),
-            "Not16": lambda: self.make_sym_lat_wc(self.gamma["Not16"]),
-            "Exp16": lambda: self.make_sym_lat_wc(self.gamma["Exp16"]),
-            "Register16": lambda: self.make_sym_lat_wc(self.gamma["Register16"]),   
-            "Mux16": lambda: self.make_sym_lat_wc(self.gamma["Mux16"]),
-            "Buf": lambda: self.make_buf_lat_dict(),    
-            "MainMem": lambda: self.make_mem_lat_dict(),
-            "OffChipIO": lambda: self.make_io_lat_dict(),
+            "And16": lambda: self._make_fu_lat_dict("And16"),
+            "Or16": lambda: self._make_fu_lat_dict("Or16"),
+            "Add16": lambda: self._make_fu_lat_dict("Add16"),
+            "Sub16": lambda: self._make_fu_lat_dict("Sub16"),
+            "Mult16": lambda: self._make_fu_lat_dict("Mult16"),
+            "FloorDiv16": lambda: self._make_fu_lat_dict("FloorDiv16"),
+            "Modulus16": lambda: self._make_fu_lat_dict("Modulus16"),
+            "LShift16": lambda: self._make_fu_lat_dict("LShift16"),
+            "RShift16": lambda: self._make_fu_lat_dict("RShift16"),
+            "BitOr16": lambda: self._make_fu_lat_dict("BitOr16"),
+            "BitXor16": lambda: self._make_fu_lat_dict("BitXor16"),
+            "BitAnd16": lambda: self._make_fu_lat_dict("BitAnd16"),
+            "Eq16": lambda: self._make_fu_lat_dict("Eq16"),
+            "NotEq16": lambda: self._make_fu_lat_dict("NotEq16"),
+            "Lt16": lambda: self._make_fu_lat_dict("Lt16"),
+            "LtE16": lambda: self._make_fu_lat_dict("LtE16"),
+            "Gt16": lambda: self._make_fu_lat_dict("Gt16"),
+            "GtE16": lambda: self._make_fu_lat_dict("GtE16"),
+            "Not16": lambda: self._make_fu_lat_dict("Not16"),
+            "Exp16": lambda: self._make_fu_lat_dict("Exp16"),
+            "Register16": lambda: self._make_fu_lat_dict("Register16"),
+            "Mux16": lambda: self._make_fu_lat_dict("Mux16"),
             "N/A": lambda: 0,
             "Call": lambda: 0,
             "read": lambda: 1,
@@ -75,31 +72,28 @@ class CircuitModel:
 
         # UNITS: nJ
         self.symbolic_energy_active = {
-            "And16": lambda: self.make_sym_energy_act("And16", self.alpha["And16"]),
-            "Or16": lambda: self.make_sym_energy_act("Or16", self.alpha["Or16"]),
-            "Add16": lambda: self.make_sym_energy_act("Add16", self.alpha["Add16"]),
-            "Sub16": lambda: self.make_sym_energy_act("Sub16", self.alpha["Sub16"]),
-            "Mult16": lambda: self.make_sym_energy_act("Mult16", self.alpha["Mult16"]),
-            "FloorDiv16": lambda: self.make_sym_energy_act("FloorDiv16", self.alpha["FloorDiv16"]),
-            "Modulus16": lambda: self.make_sym_energy_act("Modulus16", self.alpha["Modulus16"]),
-            "LShift16": lambda: self.make_sym_energy_act("LShift16", self.alpha["LShift16"]),
-            "RShift16": lambda: self.make_sym_energy_act("RShift16", self.alpha["RShift16"]),
-            "BitOr16": lambda: self.make_sym_energy_act("BitOr16", self.alpha["BitOr16"]),
-            "BitXor16": lambda: self.make_sym_energy_act("BitXor16", self.alpha["BitXor16"]),
-            "BitAnd16": lambda: self.make_sym_energy_act("BitAnd16", self.alpha["BitAnd16"]),
-            "Eq16": lambda: self.make_sym_energy_act("Eq16", self.alpha["Eq16"]),
-            "NotEq16": lambda: self.make_sym_energy_act("NotEq16", self.alpha["NotEq16"]),
-            "Lt16": lambda: self.make_sym_energy_act("Lt16", self.alpha["Lt16"]),
-            "LtE16": lambda: self.make_sym_energy_act("LtE16", self.alpha["LtE16"]),
-            "Gt16": lambda: self.make_sym_energy_act("Gt16", self.alpha["Gt16"]),
-            "GtE16": lambda: self.make_sym_energy_act("GtE16", self.alpha["GtE16"]),
-            "Not16": lambda: self.make_sym_energy_act("Not16", self.alpha["Not16"]),
-            "Exp16": lambda: self.make_sym_energy_act("Exp16", self.alpha["Exp16"]),
-            "Register16": lambda: self.make_sym_energy_act("Register16", self.alpha["Register16"]),
-            "Mux16": lambda: self.make_sym_energy_act("Mux16", self.alpha["Mux16"]),
-            "Buf": lambda: self.make_buf_energy_active_dict(),
-            "MainMem": lambda: self.make_mainmem_energy_active_dict(),
-            "OffChipIO": lambda: self.make_io_energy_active_dict(),
+            "And16": lambda: self._make_fu_energy_dict("And16"),
+            "Or16": lambda: self._make_fu_energy_dict("Or16"),
+            "Add16": lambda: self._make_fu_energy_dict("Add16"),
+            "Sub16": lambda: self._make_fu_energy_dict("Sub16"),
+            "Mult16": lambda: self._make_fu_energy_dict("Mult16"),
+            "FloorDiv16": lambda: self._make_fu_energy_dict("FloorDiv16"),
+            "Modulus16": lambda: self._make_fu_energy_dict("Modulus16"),
+            "LShift16": lambda: self._make_fu_energy_dict("LShift16"),
+            "RShift16": lambda: self._make_fu_energy_dict("RShift16"),
+            "BitOr16": lambda: self._make_fu_energy_dict("BitOr16"),
+            "BitXor16": lambda: self._make_fu_energy_dict("BitXor16"),
+            "BitAnd16": lambda: self._make_fu_energy_dict("BitAnd16"),
+            "Eq16": lambda: self._make_fu_energy_dict("Eq16"),
+            "NotEq16": lambda: self._make_fu_energy_dict("NotEq16"),
+            "Lt16": lambda: self._make_fu_energy_dict("Lt16"),
+            "LtE16": lambda: self._make_fu_energy_dict("LtE16"),
+            "Gt16": lambda: self._make_fu_energy_dict("Gt16"),
+            "GtE16": lambda: self._make_fu_energy_dict("GtE16"),
+            "Not16": lambda: self._make_fu_energy_dict("Not16"),
+            "Exp16": lambda: self._make_fu_energy_dict("Exp16"),
+            "Register16": lambda: self._make_fu_energy_dict("Register16"),
+            "Mux16": lambda: self._make_fu_energy_dict("Mux16"),
             "N/A": lambda: 0,
             "Call": lambda: 0,
             "read": lambda: 0,
@@ -113,30 +107,28 @@ class CircuitModel:
 
         # UNITS: W
         self.symbolic_power_passive = {
-            "And16": lambda: self.make_sym_power_pass("And16", self.beta["And16"]),
-            "Or16": lambda: self.make_sym_power_pass("Or16", self.beta["Or16"]),
-            "Add16": lambda: self.make_sym_power_pass("Add16", self.beta["Add16"]),
-            "Sub16": lambda: self.make_sym_power_pass("Sub16", self.beta["Sub16"]),
-            "Mult16": lambda: self.make_sym_power_pass("Mult16", self.beta["Mult16"]),
-            "FloorDiv16": lambda: self.make_sym_power_pass("FloorDiv16", self.beta["FloorDiv16"]),
-            "Modulus16": lambda: self.make_sym_power_pass("Modulus16", self.beta["Modulus16"]),
-            "LShift16": lambda: self.make_sym_power_pass("LShift16", self.beta["LShift16"]),
-            "RShift16": lambda: self.make_sym_power_pass("RShift16", self.beta["RShift16"]),
-            "BitOr16": lambda: self.make_sym_power_pass("BitOr16", self.beta["BitOr16"]),
-            "BitXor16": lambda: self.make_sym_power_pass("BitXor16", self.beta["BitXor16"]),
-            "BitAnd16": lambda: self.make_sym_power_pass("BitAnd16", self.beta["BitAnd16"]),
-            "Eq16": lambda: self.make_sym_power_pass("Eq16", self.beta["Eq16"]),
-            "NotEq16": lambda: self.make_sym_power_pass("NotEq16", self.beta["NotEq16"]),
-            "Lt16": lambda: self.make_sym_power_pass("Lt16", self.beta["Lt16"]),
-            "LtE16": lambda: self.make_sym_power_pass("LtE16", self.beta["LtE16"]),
-            "Gt16": lambda: self.make_sym_power_pass("Gt16", self.beta["Gt16"]),
-            "GtE16": lambda: self.make_sym_power_pass("GtE16", self.beta["GtE16"]),
-            "Not16": lambda: self.make_sym_power_pass("Not16", self.beta["Not16"]),
-            "Exp16": lambda: self.make_sym_power_pass("Exp16", self.beta["Exp16"]),
-            "Register16": lambda: self.make_sym_power_pass("Register16", self.beta["Register16"]),
-            "Mux16": lambda: self.make_sym_power_pass("Mux16", self.beta["Mux16"]),
-            "MainMem": lambda: self.make_mainmem_power_passive_dict(),
-            "Buf": lambda: self.make_buf_power_passive_dict(),
+            "And16": lambda: self._make_fu_power_dict("And16"),
+            "Or16": lambda: self._make_fu_power_dict("Or16"),
+            "Add16": lambda: self._make_fu_power_dict("Add16"),
+            "Sub16": lambda: self._make_fu_power_dict("Sub16"),
+            "Mult16": lambda: self._make_fu_power_dict("Mult16"),
+            "FloorDiv16": lambda: self._make_fu_power_dict("FloorDiv16"),
+            "Modulus16": lambda: self._make_fu_power_dict("Modulus16"),
+            "LShift16": lambda: self._make_fu_power_dict("LShift16"),
+            "RShift16": lambda: self._make_fu_power_dict("RShift16"),
+            "BitOr16": lambda: self._make_fu_power_dict("BitOr16"),
+            "BitXor16": lambda: self._make_fu_power_dict("BitXor16"),
+            "BitAnd16": lambda: self._make_fu_power_dict("BitAnd16"),
+            "Eq16": lambda: self._make_fu_power_dict("Eq16"),
+            "NotEq16": lambda: self._make_fu_power_dict("NotEq16"),
+            "Lt16": lambda: self._make_fu_power_dict("Lt16"),
+            "LtE16": lambda: self._make_fu_power_dict("LtE16"),
+            "Gt16": lambda: self._make_fu_power_dict("Gt16"),
+            "GtE16": lambda: self._make_fu_power_dict("GtE16"),
+            "Not16": lambda: self._make_fu_power_dict("Not16"),
+            "Exp16": lambda: self._make_fu_power_dict("Exp16"),
+            "Register16": lambda: self._make_fu_power_dict("Register16"),
+            "Mux16": lambda: self._make_fu_power_dict("Mux16"),
             "N/A": lambda: 0,
             "Call": lambda: 0,
             "read": lambda: 0,
@@ -150,28 +142,28 @@ class CircuitModel:
 
         # UNITS: um^2
         self.symbolic_area = {
-            "And16": lambda: self.make_sym_area("And16", self.area_coeffs["And16"]),
-            "Or16": lambda: self.make_sym_area("Or16", self.area_coeffs["Or16"]),
-            "Add16": lambda: self.make_sym_area("Add16", self.area_coeffs["Add16"]),
-            "Sub16": lambda: self.make_sym_area("Sub16", self.area_coeffs["Sub16"]),
-            "Mult16": lambda: self.make_sym_area("Mult16", self.area_coeffs["Mult16"]),
-            "FloorDiv16": lambda: self.make_sym_area("FloorDiv16", self.area_coeffs["FloorDiv16"]),
-            "Modulus16": lambda: self.make_sym_area("Modulus16", self.area_coeffs["Modulus16"]),
-            "LShift16": lambda: self.make_sym_area("LShift16", self.area_coeffs["LShift16"]),
-            "RShift16": lambda: self.make_sym_area("RShift16", self.area_coeffs["RShift16"]),
-            "BitOr16": lambda: self.make_sym_area("BitOr16", self.area_coeffs["BitOr16"]),
-            "BitXor16": lambda: self.make_sym_area("BitXor16", self.area_coeffs["BitXor16"]),
-            "BitAnd16": lambda: self.make_sym_area("BitAnd16", self.area_coeffs["BitAnd16"]),
-            "Eq16": lambda: self.make_sym_area("Eq16", self.area_coeffs["Eq16"]),
-            "NotEq16": lambda: self.make_sym_area("NotEq16", self.area_coeffs["NotEq16"]),
-            "Lt16": lambda: self.make_sym_area("Lt16", self.area_coeffs["Lt16"]),
-            "LtE16": lambda: self.make_sym_area("LtE16", self.area_coeffs["LtE16"]),
-            "Gt16": lambda: self.make_sym_area("Gt16", self.area_coeffs["Gt16"]),
-            "GtE16": lambda: self.make_sym_area("GtE16", self.area_coeffs["GtE16"]),
-            "Not16": lambda: self.make_sym_area("Not16", self.area_coeffs["Not16"]),
-            "Exp16": lambda: self.make_sym_area("Exp16", self.area_coeffs["Exp16"]),
-            "Register16": lambda: self.make_sym_area("Register16", self.area_coeffs["Register16"]),
-            "Mux16": lambda: self.make_sym_area("Mux16", self.area_coeffs["Mux16"]),
+            "And16": lambda: self._make_fu_area_dict("And16"),
+            "Or16": lambda: self._make_fu_area_dict("Or16"),
+            "Add16": lambda: self._make_fu_area_dict("Add16"),
+            "Sub16": lambda: self._make_fu_area_dict("Sub16"),
+            "Mult16": lambda: self._make_fu_area_dict("Mult16"),
+            "FloorDiv16": lambda: self._make_fu_area_dict("FloorDiv16"),
+            "Modulus16": lambda: self._make_fu_area_dict("Modulus16"),
+            "LShift16": lambda: self._make_fu_area_dict("LShift16"),
+            "RShift16": lambda: self._make_fu_area_dict("RShift16"),
+            "BitOr16": lambda: self._make_fu_area_dict("BitOr16"),
+            "BitXor16": lambda: self._make_fu_area_dict("BitXor16"),
+            "BitAnd16": lambda: self._make_fu_area_dict("BitAnd16"),
+            "Eq16": lambda: self._make_fu_area_dict("Eq16"),
+            "NotEq16": lambda: self._make_fu_area_dict("NotEq16"),
+            "Lt16": lambda: self._make_fu_area_dict("Lt16"),
+            "LtE16": lambda: self._make_fu_area_dict("LtE16"),
+            "Gt16": lambda: self._make_fu_area_dict("Gt16"),
+            "GtE16": lambda: self._make_fu_area_dict("GtE16"),
+            "Not16": lambda: self._make_fu_area_dict("Not16"),
+            "Exp16": lambda: self._make_fu_area_dict("Exp16"),
+            "Register16": lambda: self._make_fu_area_dict("Register16"),
+            "Mux16": lambda: self._make_fu_area_dict("Mux16"),
             "N/A": lambda: 0,
             "Call": lambda: 0,
             "read": lambda: 0,
@@ -185,6 +177,9 @@ class CircuitModel:
 
         # memories output from forward pass
         self.memories = {}
+
+        # per-FU logic unit models (keyed by rsc_name_unique); populated after netlist is loaded
+        self.logic_unit_models = {}
 
         # main mem from inverse pass
         self.symbolic_mem = {}
@@ -223,6 +218,10 @@ class CircuitModel:
         self.memories = memories
         self.update_circuit_values()
 
+    def set_logic_unit_models(self, logic_unit_models: dict):
+        self.logic_unit_models = logic_unit_models
+        self.update_circuit_values()
+
     def compare_symbolic_mem(self):
         for key in self.symbolic_mem:
             assert key in self.memories, f"symbolic memory {key} not found in memories"      
@@ -230,17 +229,26 @@ class CircuitModel:
 
     def update_circuit_values(self):
         # derive curcuit level values from technology values
+        tv = self.tech_model.base_params.tech_values
+
+        def resolve(val):
+            """Evaluate val to float(s): handles both scalar sympy exprs and
+            {rsc_name: sympy_expr} dicts produced by the per-FU _make_fu_* helpers."""
+            if isinstance(val, dict):
+                return {k: float(sim_util.xreplace_safe(v, tv)) for k, v in val.items()}
+            return float(sim_util.xreplace_safe(val, tv))
+
         self.circuit_values["latency"] = {
-            key: float(sim_util.xreplace_safe(self.symbolic_latency_wc[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
+            key: resolve(self.symbolic_latency_wc[key]()) for key in self.symbolic_latency_wc if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["dynamic_energy"] = {
-            key: float(sim_util.xreplace_safe(self.symbolic_energy_active[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO"]
+            key: resolve(self.symbolic_energy_active[key]()) for key in self.symbolic_energy_active if key not in ["Buf", "MainMem", "OffChipIO"]
         }
         self.circuit_values["passive_power"] = {
-            key: float(sim_util.xreplace_safe(self.symbolic_power_passive[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem"]
+            key: resolve(self.symbolic_power_passive[key]()) for key in self.symbolic_power_passive if key not in ["Buf", "MainMem"]
         }
         self.circuit_values["area"] = {
-            key: float(sim_util.xreplace_safe(self.symbolic_area[key](), self.tech_model.base_params.tech_values)) for key in self.symbolic_area
+            key: resolve(self.symbolic_area[key]()) for key in self.symbolic_area
         }
 
         # memory values
@@ -319,60 +327,53 @@ class CircuitModel:
             for segment in net.segments:
                 wire_energy += 0.5 * segment.length*DATA_WIDTH * self.tech_model.wire_parasitics["C"][segment.layer] * self.tech_model.base_params.V_dd**2
         return wire_energy * 1e9
-        
-    def make_sym_lat_wc(self, gamma):
-        unpipelined_delay = gamma * self.tech_model.delay
-        # more pipelining means that DFFs become a larger portion of the total delay
-        pipeline_cost = self.tech_model.base_params.clk_period/(self.tech_model.base_params.clk_period - self.DFF_DELAY)
-        return unpipelined_delay * pipeline_cost
-    
-    def make_buf_lat_dict(self):
-        return self.tech_model.base_params.BufL
 
-    def make_mem_lat_dict(self):    
-        d = {}
-        for mem in self.tech_model.base_params.MemReadL:
-            d[mem] = (self.tech_model.base_params.MemReadL[mem] + self.tech_model.base_params.MemWriteL[mem]) / 2
-        return d
+    # --- Per-FU dict helpers (used when logic_unit_models is populated) ---
+    # Each returns {rsc_name_unique: value} for all FUs of the given function type.
+    # lum.delay/E_act_inv/P_pass_inv/area are numeric (float); clk_period/DFF_* are symbolic.
 
-    def make_io_lat_dict(self):
-        return self.tech_model.base_params.OffChipIOL
-    
-    def make_buf_energy_active_dict(self):
-        d = {}
-        for mem in self.tech_model.base_params.BufReadEact:
-            d[mem] = ((self.tech_model.base_params.BufReadEact[mem] + self.tech_model.base_params.BufWriteEact[mem]) / 2)
-        return d
+    def _fu_pipeline_cost(self, fu_delay):
+        """Pipeline stage cost factor for a FU with the given combinational delay (float)."""
+        clk_period = self.tech_model.base_params.clk_period
+        return clk_period / (clk_period - self.DFF_DELAY)
 
-    def make_mainmem_energy_active_dict(self):
-        d = {}
-        for mem in self.tech_model.base_params.MemWriteEact:
-            d[mem] = ((self.tech_model.base_params.MemWriteEact[mem] + self.tech_model.base_params.MemReadEact[mem]) / 2)
-        return d    
+    def _make_fu_lat_dict(self, fn_type):
+        clk_period = self.tech_model.base_params.clk_period
+        result = {}
+        for rsc, lum in self.logic_unit_models.items():
+            if lum.function == fn_type:
+                result[rsc] = self.gamma[fn_type] * lum.delay * clk_period / (clk_period - self.DFF_DELAY)
+        return result
 
-    def make_io_energy_active_dict(self):
-        return self.tech_model.base_params.OffChipIOPact * self.tech_model.base_params.OffChipIOL
-    
-    def make_sym_energy_act(self, key, alpha):
-        unpipelined_energy = alpha * self.tech_model.E_act_inv
-        pipeline_cost = DATA_WIDTH * self.DFF_ENERGY * (self.symbolic_latency_wc[key]()/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
-        return unpipelined_energy + pipeline_cost
+    def _make_fu_energy_dict(self, fn_type):
+        clk_period = self.tech_model.base_params.clk_period
+        result = {}
+        for rsc, lum in self.logic_unit_models.items():
+            if lum.function == fn_type:
+                lat = self.gamma[fn_type] * lum.delay * clk_period / (clk_period - self.DFF_DELAY)
+                pipeline_cost = DATA_WIDTH * self.DFF_ENERGY * (lat / clk_period)
+                result[rsc] = self.alpha[fn_type] * lum.E_act_inv + pipeline_cost
+        return result
 
-    def make_mainmem_power_passive_dict(self):
-        return self.tech_model.base_params.MemPpass
-    
-    def make_buf_power_passive_dict(self):
-        return self.tech_model.base_params.BufPpass
-    
-    def make_sym_power_pass(self, key, beta):
-        unpipelined_power = beta * self.tech_model.P_pass_inv
-        pipeline_cost = DATA_WIDTH * self.DFF_PASSIVE_POWER * (self.symbolic_latency_wc[key]()/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
-        return unpipelined_power + pipeline_cost
+    def _make_fu_power_dict(self, fn_type):
+        clk_period = self.tech_model.base_params.clk_period
+        result = {}
+        for rsc, lum in self.logic_unit_models.items():
+            if lum.function == fn_type:
+                lat = self.gamma[fn_type] * lum.delay * clk_period / (clk_period - self.DFF_DELAY)
+                pipeline_cost = DATA_WIDTH * self.DFF_PASSIVE_POWER * (lat / clk_period)
+                result[rsc] = self.beta[fn_type] * lum.P_pass_inv + pipeline_cost
+        return result
 
-    def make_sym_area(self, key, area_coeff):
-        unpipelined_area = area_coeff * self.tech_model.base_params.area
-        pipeline_cost = DATA_WIDTH * self.DFF_AREA * (self.symbolic_latency_wc[key]()/self.tech_model.base_params.clk_period) # DATA_WIDTH DFFs needed for each extra cycle
-        return unpipelined_area + pipeline_cost
+    def _make_fu_area_dict(self, fn_type):
+        clk_period = self.tech_model.base_params.clk_period
+        result = {}
+        for rsc, lum in self.logic_unit_models.items():
+            if lum.function == fn_type:
+                lat = self.gamma[fn_type] * lum.delay * clk_period / (clk_period - self.DFF_DELAY)
+                pipeline_cost = DATA_WIDTH * self.DFF_AREA * (lat / clk_period)
+                result[rsc] = self.area_coeffs[fn_type] * lum.area + pipeline_cost
+        return result
 
     def create_constraints(self):
         self.constraints = []

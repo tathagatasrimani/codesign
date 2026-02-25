@@ -119,6 +119,16 @@ def _worker_basic_optimization_chunk(args_tuple):
                     else:
                         expanded_memory[mem_name] = {"index": mem_idx}
                 expanded_dp["memory"] = expanded_memory
+            fu_logic_config = design_point.get("fu_logic", {})
+            if fu_logic_config and evaluator.logic_unit_models:
+                expanded_fu_logic = {}
+                for rsc_name, fu_idx in fu_logic_config.items():
+                    if rsc_name in evaluator.logic_unit_models:
+                        lum = evaluator.logic_unit_models[rsc_name]
+                        expanded_fu_logic[rsc_name] = {"index": fu_idx, "function": lum.function, **lum.get_design_point_row()}
+                    else:
+                        expanded_fu_logic[rsc_name] = {"index": fu_idx}
+                expanded_dp["fu_logic"] = expanded_fu_logic
 
             result = DesignPointResult(
                 design_point=expanded_dp,
@@ -197,6 +207,8 @@ class Optimizer:
                 memory_design_space[mem_name] = mem_model.num_design_points
         mem_names = sorted(memory_design_space.keys())
 
+        fu_rsc_names = list(self.hw.logic_unit_models.keys()) if self.hw.logic_unit_models else []
+
         # Generate all memory index combinations
         if mem_names:
             mem_ranges = [range(memory_design_space[n]) for n in mem_names]
@@ -218,6 +230,7 @@ class Optimizer:
                 dp = {
                     "logic": tech_dp,
                     "memory": {name: idx for name, idx in zip(mem_names, mem_combo)},
+                    "fu_logic": {rsc: i for rsc in fu_rsc_names},
                 }
                 design_points.append((len(design_points), dp))
         np.random.shuffle(design_points)
@@ -327,7 +340,7 @@ class Optimizer:
         return 1, False
 
 
-    def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50):
+    def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50, shared_fu_logic=True):
         """
         Sample-efficient alternative to brute-force enumeration using Bayesian
         optimisation (Optuna TPE sampler).
@@ -361,6 +374,11 @@ class Optimizer:
             n_parallel:   Number of design points evaluated in parallel per
                           batch, i.e. the Optuna batch size and the number of
                           worker processes per batch (default 50).
+            shared_fu_logic: If True (default), all FUs share a single logic
+                          index sampled jointly with the global logic tech
+                          point.  If False, each FU gets an independent axis,
+                          which makes the search space n_tech_points^n_fu and
+                          is only practical for a small number of FUs.
         """
         try:
             import optuna
@@ -383,36 +401,65 @@ class Optimizer:
                 memory_design_space[mem_name] = mem_model.num_design_points
         mem_names = sorted(memory_design_space.keys())
 
-        logger.info(f"Starting Bayesian optimization: {n_tech_points} tech points, memory space: {memory_design_space}")
+        # Per-FU logic design space: all FU models share the same pareto front size
+        fu_logic_design_space = {}
+        if self.hw.logic_unit_models:
+            any_lum = next(iter(self.hw.logic_unit_models.values()))
+            n_fu_dp = any_lum.num_design_points
+            for rsc_name in self.hw.logic_unit_models:
+                fu_logic_design_space[rsc_name] = n_fu_dp
+
+        logger.info(f"Starting Bayesian optimization: {n_tech_points} tech points, memory space: {memory_design_space}, fu_logic FUs: {len(fu_logic_design_space)}")
         logger.info(f"Running {n_trials} trials with {n_parallel} parallel workers per batch")
 
         evaluator = ObjectiveEvaluator.from_hardware_model(self.hw)
         leakage_restriction = self.hw.cfg["args"]["leakage_restriction"]
 
-        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=42))
+        # QMCSampler: O(1) per ask (no model fitting), flat time across batches.
+        # TPESampler re-fits KDE over all completed trials for every ask() call,
+        # making ask time grow as O(batch_size * n_completed) per batch.
+        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.QMCSampler(seed=42))
         all_results: List[DesignPointResult] = []
 
         n_batches = math.ceil(n_trials / n_parallel)
+        total_ask_time = 0.0
+        total_eval_time = 0.0
+        total_tell_time = 0.0
         for batch_idx in range(n_batches):
             batch_size = min(n_parallel, n_trials - batch_idx * n_parallel)
 
             # Ask optuna for a batch of trials
+            t0 = time.time()
             batch_trials = []
             batch_dps = []
             for _ in range(batch_size):
                 trial = study.ask()
+                mem_indices = {
+                    name: trial.suggest_int(f"mem_{name}", 0, n_dp - 1)
+                    for name, n_dp in memory_design_space.items()
+                }
                 logic_idx = trial.suggest_int("logic_idx", 0, n_tech_points - 1)
+                if shared_fu_logic or not fu_logic_design_space:
+                    fu_logic_indices = {rsc: logic_idx for rsc in fu_logic_design_space}
+                else:
+                    # Independent axis per FU: search space is n_tech_points^n_fu.
+                    # Only practical when n_fu is small.
+                    fu_logic_indices = {
+                        rsc: trial.suggest_int(f"logic_idx_{rsc}", 0, n_tech_points - 1)
+                        for rsc in fu_logic_design_space
+                    }
                 dp = {
                     "logic": pareto_rows[logic_idx],
-                    "memory": {
-                        name: trial.suggest_int(f"mem_{name}", 0, n_dp - 1)
-                        for name, n_dp in memory_design_space.items()
-                    },
+                    "memory": mem_indices,
+                    "fu_logic": fu_logic_indices,
                 }
                 batch_trials.append(trial)
                 batch_dps.append(dp)
+            ask_time = time.time() - t0
+            total_ask_time += ask_time
 
             # Partition batch into chunks for parallel evaluation
+            t0 = time.time()
             indexed_batch = list(enumerate(batch_dps))
             n_workers = min(n_parallel, batch_size)
             chunk_size = math.ceil(batch_size / n_workers)
@@ -432,12 +479,17 @@ class Optimizer:
                     _, worker_results = future.result()
                     for (dp_idx, _), result in zip(chunk, worker_results):
                         results_by_idx[dp_idx] = result
+            eval_time = time.time() - t0
+            total_eval_time += eval_time
 
             # Tell results to optuna
+            t0 = time.time()
             for dp_idx, trial in enumerate(batch_trials):
                 result = results_by_idx[dp_idx]
                 obj = result.obj_value if result.satisfies_constraints else float('inf')
                 study.tell(trial, obj)
+            tell_time = time.time() - t0
+            total_tell_time += tell_time
 
             batch_results = [results_by_idx[i] for i in range(batch_size)]
             all_results.extend(batch_results)
@@ -445,9 +497,11 @@ class Optimizer:
             valid_in_batch = [r for r in batch_results if r.satisfies_constraints]
             if valid_in_batch:
                 batch_best = min(valid_in_batch, key=lambda r: r.obj_value)
-                logger.info(f"Batch {batch_idx+1}/{n_batches}: best={batch_best.obj_value:.6g}, valid={len(valid_in_batch)}/{batch_size}")
+                logger.info(f"Batch {batch_idx+1}/{n_batches}: best={batch_best.obj_value:.6g}, valid={len(valid_in_batch)}/{batch_size} | ask={ask_time:.2f}s eval={eval_time:.2f}s tell={tell_time:.2f}s")
             else:
-                logger.info(f"Batch {batch_idx+1}/{n_batches}: no valid designs in batch")
+                logger.info(f"Batch {batch_idx+1}/{n_batches}: no valid designs in batch | ask={ask_time:.2f}s eval={eval_time:.2f}s tell={tell_time:.2f}s")
+
+        logger.info(f"Bayesian optimization timing summary: ask={total_ask_time:.2f}s ({100*total_ask_time/(total_ask_time+total_eval_time+total_tell_time):.1f}%), eval={total_eval_time:.2f}s ({100*total_eval_time/(total_ask_time+total_eval_time+total_tell_time):.1f}%), tell={total_tell_time:.2f}s ({100*total_tell_time/(total_ask_time+total_eval_time+total_tell_time):.1f}%)")
 
         valid_results = [r for r in all_results if r.satisfies_constraints]
         sorted_results = sorted(valid_results, key=lambda r: r.obj_value)
@@ -493,6 +547,10 @@ class Optimizer:
         for mem_name, mem_model in self.hw.memory_models.items():
             if mem_name in best_memory_config:
                 mem_model.set_design_point(best_memory_config[mem_name])
+        best_fu_logic_config = best_design_point.get("fu_logic", {})
+        for rsc_name, lum in self.hw.logic_unit_models.items():
+            if rsc_name in best_fu_logic_config:
+                lum.set_design_point(best_fu_logic_config[rsc_name])
         self.hw.calculate_objective()
         return 1, False
 
@@ -516,6 +574,7 @@ class Optimizer:
                 improvement, iteration,
                 n_trials=kwargs.get("n_trials", 500),
                 n_parallel=kwargs.get("n_parallel", 50),
+                shared_fu_logic=kwargs.get("shared_fu_logic", True),
             )
         else:
             raise ValueError(f"Invalid solver: {opt}")

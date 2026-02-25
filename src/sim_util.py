@@ -209,6 +209,12 @@ def xreplace_safe(expr, replacements):
     else:
         return expr
 
+def mean_circuit_val(val):
+    """Return the mean of a per-FU dict or the scalar itself."""
+    if isinstance(val, dict):
+        return sum(val.values()) / len(val) if val else 0.0
+    return val
+
 def remove_node(G, node):
     for src in G.predecessors(node):
         for dst in G.successors(node):

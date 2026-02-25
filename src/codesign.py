@@ -104,6 +104,7 @@ class Codesign:
         self.run_cacti = not self.cfg["args"]["debug_no_cacti"]
         self.no_memory = self.cfg["args"]["no_memory"]
         self.hw = hardwareModel.HardwareModel(self.cfg, self.codesign_root_dir, self.tmp_dir)
+        self.hw.init_default_logic_unit_models(index=0)
         self.opt = optimize.Optimizer(self.hw, self.tmp_dir, self.save_dir, max_power=self.cfg["args"]["max_power"], max_power_density=self.cfg["args"]["max_power_density"], opt_pipeline=self.cfg["args"]["opt_pipeline"])
         self.module_map = {}
         self.inverse_pass_improvement = self.cfg["args"]["inverse_pass_improvement"]
@@ -248,10 +249,11 @@ class Codesign:
             print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
-        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
-        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
-        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
-        config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
+        lat = self.hw.circuit_model.circuit_values["latency"]
+        config["100MHz"]["fadd"] = math.ceil(sim_util.mean_circuit_val(lat["Add16"]) / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(sim_util.mean_circuit_val(lat["Mult16"]) / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(sim_util.mean_circuit_val(lat["FloorDiv16"]) / self.clk_period)
+        config["100MHz"]["fcmp"] = math.ceil(sim_util.mean_circuit_val(lat["GtE16"]) / self.clk_period)
 
         config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
         with open(self.config_json_path, "w") as f:
@@ -268,20 +270,23 @@ class Codesign:
         config["bram"] = self.cur_dsp_usage
 
         # Set operation latencies based on hardware model
-        config["latency"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
-        config["latency"]["fsub"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Sub16"] / self.clk_period)
-        config["latency"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
-        config["latency"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
-        config["latency"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
-        config["latency"]["fexp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Exp16"] / self.clk_period)
+        lat = self.hw.circuit_model.circuit_values["latency"]
+        config["latency"]["fadd"] = math.ceil(sim_util.mean_circuit_val(lat["Add16"]) / self.clk_period)
+        config["latency"]["fsub"] = math.ceil(sim_util.mean_circuit_val(lat["Sub16"]) / self.clk_period)
+        config["latency"]["fmul"] = math.ceil(sim_util.mean_circuit_val(lat["Mult16"]) / self.clk_period)
+        config["latency"]["fdiv"] = math.ceil(sim_util.mean_circuit_val(lat["FloorDiv16"]) / self.clk_period)
+        config["latency"]["fcmp"] = math.ceil(sim_util.mean_circuit_val(lat["GtE16"]) / self.clk_period)
+        config["latency"]["fexp"] = math.ceil(sim_util.mean_circuit_val(lat["Exp16"]) / self.clk_period)
 
         # Set DSP usage based on hardware model
-        config["dsp_usage"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Add16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-        config["dsp_usage"]["fsub"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Sub16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-        config["dsp_usage"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Mult16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-        config["dsp_usage"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["FloorDiv16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-        config["dsp_usage"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["GtE16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
-        config["dsp_usage"]["fexp"] = math.ceil(self.hw.circuit_model.circuit_values["area"]["Exp16"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
+        area = self.hw.circuit_model.circuit_values["area"]
+        A_gate = sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier
+        config["dsp_usage"]["fadd"] = math.ceil(sim_util.mean_circuit_val(area["Add16"]) / A_gate)
+        config["dsp_usage"]["fsub"] = math.ceil(sim_util.mean_circuit_val(area["Sub16"]) / A_gate)
+        config["dsp_usage"]["fmul"] = math.ceil(sim_util.mean_circuit_val(area["Mult16"]) / A_gate)
+        config["dsp_usage"]["fdiv"] = math.ceil(sim_util.mean_circuit_val(area["FloorDiv16"]) / A_gate)
+        config["dsp_usage"]["fcmp"] = math.ceil(sim_util.mean_circuit_val(area["GtE16"]) / A_gate)
+        config["dsp_usage"]["fexp"] = math.ceil(sim_util.mean_circuit_val(area["Exp16"]) / A_gate)
 
         with open(self.config_json_path, "w") as f:
             json.dump(config, f)
@@ -631,6 +636,7 @@ class Codesign:
 
         self.hw.netlist = nx.read_gml(f"{parse_results_dir}/{self.vitis_top_function}_physical_netlist_filtered.gml")
         self.hw.set_memory_models(self.mem_mapping)
+        self.hw.set_logic_unit_models()
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -1077,8 +1083,14 @@ class Codesign:
             start_time_after_inverse_pass = time.time()
             self.hw.circuit_model.update_circuit_values()
             self.log_all_to_file(self.iteration_count)
+            # Capture avg FU design point index before reset_tech_model clears logic_unit_models
+            if self.hw.logic_unit_models:
+                avg_fu_index = round(sum(lum._design_point_index for lum in self.hw.logic_unit_models.values()) / len(self.hw.logic_unit_models))
+            else:
+                avg_fu_index = 0
             self.hw.reset_state()
             self.hw.reset_tech_model()
+            self.hw.init_default_logic_unit_models(index=avg_fu_index)
             logger.info(f"time to update state after inverse pass iteration {self.iteration_count}: {time.time()-start_time_after_inverse_pass}")
             logger.info(f"time to execute iteration {self.iteration_count}: {time.time()-start_time}")
             self.iteration_count += 1
