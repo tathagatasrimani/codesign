@@ -36,7 +36,9 @@ default:
     historical_trend_pipeline: False
     leakage_restriction: False
     MUL_restriction: False
-    shared_fu_logic: True
+    fu_grouping: by_function
+    mem_grouping: by_capacity
+    sampler: tpe
 
 
 vitis_test_mvs:

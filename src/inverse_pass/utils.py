@@ -49,6 +49,7 @@ class DesignPointResult:
     V_th: float
     tox: float
     satisfies_constraints: bool
+    constraint_violations: Dict[str, float] = field(default_factory=dict)
     # Block-level scalar metrics (from ObjectiveEvaluator)
     execution_time: float = 0.0       # block execution time (ns)
     total_active_energy: float = 0.0  # block active energy (nJ)

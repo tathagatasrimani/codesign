@@ -948,10 +948,7 @@ class Codesign:
 
     def inverse_pass(self):
         """
-        Executes the inverse pass of the codesign process: generates symbolic CACTI values for
-        memories, computes obj, runs optimizer to find better technology
-        parameters, and logs results.
-
+        Executes the inverse pass of the codesign process: optimize technology given some netlist and schedule
         Args:
             None
         Returns:
@@ -962,7 +959,7 @@ class Codesign:
 
         stdout = sys.stdout
         with open(f"{self.tmp_dir}/ipopt_out.txt", "w") as sys.stdout:
-            lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], iteration=self.iteration_count, improvement=self.inverse_pass_improvement)
+            lag_factor, error = self.opt.optimize(self.cfg["args"]["solver"], iteration=self.iteration_count, improvement=self.inverse_pass_improvement, fu_grouping=self.cfg["args"]["fu_grouping"], mem_grouping=self.cfg["args"]["mem_grouping"], sampler=self.cfg["args"]["sampler"])
             self.inverse_pass_lag_factor *= lag_factor
         sys.stdout = stdout
 

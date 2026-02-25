@@ -31,24 +31,24 @@ def log_info(msg, stage):
     elif stage == "after optimization":
         logger.info(msg)
 
-def satisfies_constraints(total_power, total_area, total_passive_power, design_point, max_system_power, max_system_power_density, tech_model, leakage_restriction):
-    # Ensure numeric values by substituting any remaining symbolic expressions
+def compute_constraints(total_power, total_area, total_passive_power, max_system_power, max_system_power_density, tech_model, leakage_restriction):
+    """Return normalized constraint violation values.
+
+    Each value is (actual / limit - 1): <= 0 means satisfied, > 0 means violated
+    with magnitude proportional to the degree of violation.
+    The leakage key is always present (-1.0 = trivially satisfied when leakage_restriction=False).
+    """
     total_power = sim_util.xreplace_safe(total_power, tech_model.base_params.tech_values)
     total_area = sim_util.xreplace_safe(total_area, tech_model.base_params.tech_values)
     total_passive_power = sim_util.xreplace_safe(total_passive_power, tech_model.base_params.tech_values)
-
-    if total_power > max_system_power:
-        logger.info(f"total power {total_power} is greater than max system power {max_system_power} for design point {design_point}")
-        return False
-    total_area_mm2 = total_area *1e4
+    total_area_mm2 = total_area * 1e4
     power_density_w_cm2 = total_power / total_area_mm2
-    if power_density_w_cm2 > max_system_power_density:
-        logger.info(f"power density {power_density_w_cm2} ({total_area_mm2} mm^2) ({total_power} W) is greater than max system power density {max_system_power_density} for design point {design_point}")
-        return False
-    if leakage_restriction and (total_passive_power > total_power/3): # restriction is that passive power <= 1/3 total power
-            logger.info(f"passive power {total_passive_power} is greater than 1/3 total power {total_power/3} for design point {design_point}")
-            return False
-    return True
+    leakage_violation = (total_passive_power / (total_power / 3) - 1) if leakage_restriction else -1.0
+    return {
+        "power":         total_power / max_system_power - 1,
+        "power_density": power_density_w_cm2 / max_system_power_density - 1,
+        "leakage":       leakage_violation,
+    }
 
 def _worker_basic_optimization_chunk(args_tuple):
     """
@@ -104,7 +104,11 @@ def _worker_basic_optimization_chunk(args_tuple):
             L = sim_util.xreplace_safe(tech_model.base_params.L, tech_model.base_params.tech_values)
             W = sim_util.xreplace_safe(tech_model.base_params.W, tech_model.base_params.tech_values)
 
-            constraints_satisfied = satisfies_constraints(evaluator.total_power, evaluator.total_area, evaluator.total_passive_power, design_point, max_system_power, max_system_power_density, tech_model, leakage_restriction)
+            constraint_violations = compute_constraints(evaluator.total_power, evaluator.total_area, evaluator.total_passive_power, max_system_power, max_system_power_density, tech_model, leakage_restriction)
+            constraints_satisfied = all(v <= 0 for v in constraint_violations.values())
+            if not constraints_satisfied:
+                violated = {k: v for k, v in constraint_violations.items() if v > 0}
+                logger.info(f"constraints violated: { {k: f'{v:+.2%}' for k, v in violated.items()} }")
 
             # Expand memory indices to full metric dicts for reporting
             expanded_dp = dict(design_point)
@@ -133,6 +137,7 @@ def _worker_basic_optimization_chunk(args_tuple):
             result = DesignPointResult(
                 design_point=expanded_dp,
                 obj_value=obj_value,
+                constraint_violations=constraint_violations,
                 delay=delay,
                 dynamic_energy=dynamic_energy,
                 leakage_power=leakage_power,
@@ -173,6 +178,38 @@ def _worker_basic_optimization_chunk(args_tuple):
                 #logger.info(f"worker {worker_id} new best objective value: {obj_value}, design point: {design_point}")
 
     return (worker_id, results)
+
+
+class DesignSpaceNN:
+    """Maps PCA-space suggestions to nearest valid design point indices.
+
+    Parameterizes each design space by its principal components so that
+    Optuna's surrogate can learn geometry without corner-seeking artifacts.
+    """
+    def __init__(self, X, n_components=3):
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.decomposition import PCA
+        from sklearn.neighbors import NearestNeighbors
+        X = np.asarray(X, dtype=float)
+        self.scaler = StandardScaler().fit(X)
+        Xs = self.scaler.transform(X)
+        n_components = min(n_components, X.shape[0] - 1, X.shape[1])
+        self.pca = PCA(n_components=n_components).fit(Xs)
+        X_pca = self.pca.transform(Xs)
+        self.lo = X_pca.min(axis=0)
+        self.hi = X_pca.max(axis=0)
+        self.nn = NearestNeighbors(n_neighbors=1, algorithm='brute').fit(Xs)
+        self.n_components = n_components
+        self.explained_variance_ratio_ = self.pca.explained_variance_ratio_
+
+    def suggest_and_lookup(self, trial, prefix):
+        pca_vec = [
+            trial.suggest_float(f"{prefix}_pc{i}", float(self.lo[i]), float(self.hi[i]))
+            for i in range(self.n_components)
+        ]
+        Xs_query = self.pca.inverse_transform([pca_vec])
+        _, idx = self.nn.kneighbors(Xs_query)
+        return int(idx[0][0])
 
 
 class Optimizer:
@@ -340,7 +377,7 @@ class Optimizer:
         return 1, False
 
 
-    def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50, shared_fu_logic=True):
+    def bayesian_optimization(self, improvement, iteration, n_trials=500, n_parallel=50, fu_grouping="shared", mem_grouping="by_capacity", sampler="qmc", n_pca_components_logic=5, n_pca_components_memory=3):
         """
         Sample-efficient alternative to brute-force enumeration using Bayesian
         optimisation (Optuna TPE sampler).
@@ -374,11 +411,17 @@ class Optimizer:
             n_parallel:   Number of design points evaluated in parallel per
                           batch, i.e. the Optuna batch size and the number of
                           worker processes per batch (default 50).
-            shared_fu_logic: If True (default), all FUs share a single logic
-                          index sampled jointly with the global logic tech
-                          point.  If False, each FU gets an independent axis,
-                          which makes the search space n_tech_points^n_fu and
-                          is only practical for a small number of FUs.
+            fu_grouping:  How FU logic tech points are suggested.
+                          "shared"      - all FUs reuse the global logic_idx (default).
+                          "by_function" - one suggest per unique function type (e.g. Mult16, Add16).
+                          "independent" - one suggest per FU resource.
+            mem_grouping: How memory blocks are suggested.
+                          "by_capacity" - one suggest per unique capacity label (default).
+                          "independent" - one suggest per memory block.
+            sampler:      Optuna sampler. "qmc" (default) uses QMCSampler (Sobol) —
+                          constant ask cost, good coverage. "tpe" uses TPESampler —
+                          adaptive but ask cost grows O(n_completed × d); only
+                          recommended with fu_grouping "shared" or "by_function".
         """
         try:
             import optuna
@@ -415,11 +458,75 @@ class Optimizer:
         evaluator = ObjectiveEvaluator.from_hardware_model(self.hw)
         leakage_restriction = self.hw.cfg["args"]["leakage_restriction"]
 
-        # QMCSampler: O(1) per ask (no model fitting), flat time across batches.
-        # TPESampler re-fits KDE over all completed trials for every ask() call,
-        # making ask time grow as O(batch_size * n_completed) per batch.
-        study = optuna.create_study(direction="minimize", sampler=optuna.samplers.QMCSampler(seed=42))
+        # Build PCA-based NN models using only quantities that enter the objective.
+        # Logic/FU space: delay, E_act_inv, P_pass_inv, area (from _precomputed, which
+        # evaluates the tech model's symbolic expressions at each pareto row) and V_dd
+        # (for wire energy). filtered_indices maps filtered rows back to _precomputed arrays.
+        filtered_indices = filtered_pareto_df.index.to_numpy()
+        assert self.hw.logic_unit_models, "bayesian_optimization requires logic_unit_models to be populated"
+        any_lum = next(iter(self.hw.logic_unit_models.values()))
+        p = any_lum._precomputed
+        X_logic = np.column_stack([
+            p["delay"][filtered_indices],
+            p["E_act_inv"][filtered_indices],
+            p["P_pass_inv"][filtered_indices],
+            p["area"][filtered_indices],
+            filtered_pareto_df["V_dd"].to_numpy(dtype=float),
+        ])
+        logic_nn = DesignSpaceNN(X_logic, n_components=n_pca_components_logic)
+        logger.info(f"Logic NN: {logic_nn.n_components} PCA components, "
+                    f"variance explained: {logic_nn.explained_variance_ratio_.cumsum()[-1]:.1%}")
+
+        assert fu_grouping in ("shared", "by_function", "independent"), f"Invalid fu_grouping: {fu_grouping}"
+        assert mem_grouping in ("by_capacity", "independent"), f"Invalid mem_grouping: {mem_grouping}"
+
+        # Memory: one NN per group key; group key is capacity_label or mem_name.
+        _MEM_FEATS = ["cacheHitLatency_ns", "cacheWriteLatency_ns",
+                      "cacheHitDynamicEnergy_nJ", "cacheWriteDynamicEnergy_nJ",
+                      "cacheLeakage_mW", "cacheArea_mm2",
+                      "retentionTime_ns", "refreshEnergy_nJ"]
+        mem_group_nns = {}   # group_key -> DesignSpaceNN
+        mem_to_group = {}    # mem_name -> group_key
+        for mem_name, mem_model in self.hw.memory_models.items():
+            if mem_model.num_design_points > 0:
+                gk = mem_model.capacity_label if mem_grouping == "by_capacity" else mem_name
+                mem_to_group[mem_name] = gk
+                if gk not in mem_group_nns:
+                    cols = [c for c in _MEM_FEATS if c in mem_model.pareto_df.columns]
+                    X_mem = mem_model.pareto_df[cols].to_numpy(dtype=float)
+                    mem_group_nns[gk] = DesignSpaceNN(X_mem, n_components=n_pca_components_memory)
+                    logger.info(f"Memory group '{gk}' NN: {mem_group_nns[gk].n_components} PCA components, "
+                                f"variance explained: {mem_group_nns[gk].explained_variance_ratio_.cumsum()[-1]:.1%}")
+
+        # FU logic draws from the same pareto front as global logic — reuse logic_nn.
+        # Build fu_groups (group_key -> [rsc_names]) and rsc_to_fu_group for ask loop.
+        fu_groups = {}        # group_key -> [rsc_names]
+        rsc_to_fu_group = {}  # rsc_name -> group_key
+        if fu_grouping == "by_function":
+            for rsc_name, lum in self.hw.logic_unit_models.items():
+                fu_groups.setdefault(lum.function, []).append(rsc_name)
+                rsc_to_fu_group[rsc_name] = lum.function
+        elif fu_grouping == "independent":
+            for rsc_name in fu_logic_design_space:
+                fu_groups[rsc_name] = [rsc_name]
+                rsc_to_fu_group[rsc_name] = rsc_name
+        # "shared": fu_groups stays empty — FUs reuse logic_idx in ask loop
+
+
+        assert sampler in ("qmc", "tpe"), f"Invalid sampler: {sampler}"
+        if sampler == "tpe":
+            # constraints_func reads the "constraint" user attr set during tell.
+            # TPE models feasibility separately from the objective, so infeasible
+            # trials don't pollute the surrogate for the objective.
+            _sampler = optuna.samplers.TPESampler(
+                seed=42,
+                constraints_func=lambda trial: trial.user_attrs.get("constraints", [0.0, 0.0, 0.0]),
+            )
+        else:
+            _sampler = optuna.samplers.QMCSampler(seed=42)
+        study = optuna.create_study(direction="minimize", sampler=_sampler)
         all_results: List[DesignPointResult] = []
+        logger.info(f"Starting Bayesian optimization with {sampler} sampler, {n_trials} trials and {n_parallel} parallel workers per batch")
 
         n_batches = math.ceil(n_trials / n_parallel)
         total_ask_time = 0.0
@@ -432,29 +539,37 @@ class Optimizer:
             t0 = time.time()
             batch_trials = []
             batch_dps = []
-            for _ in range(batch_size):
+            for i in range(batch_size):
+                #t1 = time.time()
                 trial = study.ask()
-                mem_indices = {
-                    name: trial.suggest_int(f"mem_{name}", 0, n_dp - 1)
-                    for name, n_dp in memory_design_space.items()
+                logic_idx = logic_nn.suggest_and_lookup(trial, "logic")
+                group_indices = {
+                    gk: mem_group_nns[gk].suggest_and_lookup(trial, f"mem_{gk}")
+                    for gk in mem_group_nns
                 }
-                logic_idx = trial.suggest_int("logic_idx", 0, n_tech_points - 1)
-                if shared_fu_logic or not fu_logic_design_space:
+                mem_indices = {name: group_indices[mem_to_group[name]] for name in memory_design_space}
+                #logger.info(f"Suggested memory indices after time: {time.time() - t1:.2f}s: {mem_indices}")
+                if fu_grouping == "shared" or not fu_logic_design_space:
                     fu_logic_indices = {rsc: logic_idx for rsc in fu_logic_design_space}
                 else:
-                    # Independent axis per FU: search space is n_tech_points^n_fu.
-                    # Only practical when n_fu is small.
+                    fu_group_indices = {
+                        gk: logic_nn.suggest_and_lookup(trial, f"fu_{gk}")
+                        for gk in fu_groups
+                    }
                     fu_logic_indices = {
-                        rsc: trial.suggest_int(f"logic_idx_{rsc}", 0, n_tech_points - 1)
+                        rsc: fu_group_indices[rsc_to_fu_group[rsc]]
                         for rsc in fu_logic_design_space
                     }
+                #logger.info(f"Suggested FU logic indices after time: {time.time() - t1:.2f}s: {fu_logic_indices}")
                 dp = {
                     "logic": pareto_rows[logic_idx],
                     "memory": mem_indices,
                     "fu_logic": fu_logic_indices,
                 }
+                #logger.info(f"time taken to suggest trial {i} of {batch_size}: {time.time() - t1:.2f}s")
                 batch_trials.append(trial)
                 batch_dps.append(dp)
+
             ask_time = time.time() - t0
             total_ask_time += ask_time
 
@@ -482,12 +597,15 @@ class Optimizer:
             eval_time = time.time() - t0
             total_eval_time += eval_time
 
-            # Tell results to optuna
+            # Tell results to optuna.
+            # For TPE: set "constraint" user attr (0.0=feasible, 1.0=violated) so
+            # constraints_func can separate feasibility from the objective model.
+            # For QMC: user attrs are ignored; obj is still the real value.
             t0 = time.time()
             for dp_idx, trial in enumerate(batch_trials):
                 result = results_by_idx[dp_idx]
-                obj = result.obj_value if result.satisfies_constraints else float('inf')
-                study.tell(trial, obj)
+                trial.set_user_attr("constraints", list(result.constraint_violations.values()))
+                study.tell(trial, result.obj_value)
             tell_time = time.time() - t0
             total_tell_time += tell_time
 
@@ -574,7 +692,11 @@ class Optimizer:
                 improvement, iteration,
                 n_trials=kwargs.get("n_trials", 500),
                 n_parallel=kwargs.get("n_parallel", 50),
-                shared_fu_logic=kwargs.get("shared_fu_logic", True),
+                fu_grouping=kwargs.get("fu_grouping", "shared"),
+                mem_grouping=kwargs.get("mem_grouping", "by_capacity"),
+                sampler=kwargs.get("sampler", "qmc"),
+                n_pca_components_logic=kwargs.get("n_pca_components_logic", 5),
+                n_pca_components_memory=kwargs.get("n_pca_components_memory", 3),
             )
         else:
             raise ValueError(f"Invalid solver: {opt}")
