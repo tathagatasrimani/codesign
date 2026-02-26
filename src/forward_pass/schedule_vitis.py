@@ -112,6 +112,10 @@ def get_core_info(line):
     pattern = r'<Ports = (\d+)>'
     match = re.search(pattern, line)
     core_info["Ports"] = int(match.group(1)) if match else 1
+
+    pattern = r'<Depth = (\d+)>'
+    match = re.search(pattern, line)
+    core_info["Depth"] = int(match.group(1)) if match else 0
     return core_info
 
 def match_pattern_in_line(line, pattern):
@@ -314,6 +318,8 @@ class DataFlowGraph:
         if os.path.exists(reg_mapping_path):
             with open(reg_mapping_path, 'r') as f:
                 self.register_mapping = json.load(f)
+        # Loop-carried dependency tracking
+        self.ram_recurrences = []            # [(store_node_name, ram_depth), ...] for RAM recurrences
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -345,8 +351,45 @@ class DataFlowGraph:
     def get_graph_leaves(self):
         return [node for node, out_degree in self.G.out_degree() if out_degree == 0]
 
+    def compute_ram_recurrences(self, G_standard_with_wire_ops):
+        """Find RAM store nodes for arrays that are both read and written in this loop body."""
+        logger.info(f"Computing ram recurrences for loop {self.name} in basic block {self.basic_block_name}")
+        read_mems = {}
+        write_nodes = {}  # mem_name -> [(node_name, depth)]
+        for node, attrs in G_standard_with_wire_ops.nodes(data=True):
+            fn = attrs.get("function")
+            mem_name = attrs.get("mem_name")
+            depth = attrs.get("mem_depth")
+            loop_name = attrs.get("dfg_name")
+            is_in_loop = attrs.get("is_in_loop")
+            if not is_in_loop or not mem_name or not depth:
+                continue
+            logger.info(f"node: {node}, fn: {fn}, mem_name: {mem_name}, depth: {depth}")
+            if fn in ("load", "read"):
+                read_mems.setdefault(loop_name, {}).setdefault(mem_name, []).append((node, depth))
+            elif fn in ("store", "write"):
+                write_nodes.setdefault(loop_name, {}).setdefault(mem_name, []).append((node, depth))
+        result = {}
+        for loop_name in read_mems.keys() & write_nodes.keys():
+            result[loop_name] = {}
+            for mem_name in read_mems[loop_name].keys() & write_nodes[loop_name].keys():
+                logger.info(f"Computing ram recurrence for loop {loop_name} and mem {mem_name}")
+                logger.info(f"read_mems: {read_mems[loop_name][mem_name]}")
+                logger.info(f"write_nodes: {write_nodes[loop_name][mem_name]}")
+                if nx.has_path(G_standard_with_wire_ops, read_mems[loop_name][mem_name][0][0], write_nodes[loop_name][mem_name][0][0]):
+                    path = nx.shortest_path(G_standard_with_wire_ops, read_mems[loop_name][mem_name][0][0], write_nodes[loop_name][mem_name][0][0])
+                    res_dict = {
+                        "path": path,
+                        "depth": read_mems[loop_name][mem_name][0][1]
+                    }
+                    result[loop_name][mem_name] = res_dict
+                else:
+                    logger.info(f"No path found between {read_mems[loop_name][mem_name][0][0]} and {write_nodes[loop_name][mem_name][0][0]}")
+        return result
+
     def convert_to_standard_dfg_with_wire_ops(self):
         self.G_standard_with_wire_ops = self.add_wire_ops(self.G_standard)
+        self.ram_recurrences = self.compute_ram_recurrences(self.G_standard_with_wire_ops)
         for loop in self.loop_dfgs:
             for iter_num in self.loop_dfgs[loop]:
                 for rsc_delay_only_status in self.loop_dfgs[loop][iter_num]:
@@ -495,7 +538,8 @@ class DataFlowGraph:
                 elif instruction["op"] == "load" or instruction["op"] == "read":
                     self.handle_read_or_load(op_name, mem_name)
             
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name)
+            mem_depth = instruction["core_info"].get("Depth", 0) if instruction["core_info"] else 0
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name, mem_depth=mem_depth)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
@@ -979,6 +1023,7 @@ class vitis_schedule_parser:
                 self.connect_flattened_graph(self.basic_blocks[basic_block_name].dfg)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard = self.basic_blocks[basic_block_name].dfg.standard_dfg_basic_block_new(self.basic_blocks[basic_block_name].dfg.G_flattened, create_loop_standard_dfgs=False)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops = self.basic_blocks[basic_block_name].dfg.add_wire_ops(self.basic_blocks[basic_block_name].dfg.G_flattened_standard)
+                self.basic_blocks[basic_block_name].dfg.ram_recurrences = self.basic_blocks[basic_block_name].dfg.compute_ram_recurrences(self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops)
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard.gml")
                 nx.write_gml(self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops, f"{self.build_dir}/parse_results/{basic_block_name}/{basic_block_name}_flattened_graph_standard_with_wire_ops.gml")

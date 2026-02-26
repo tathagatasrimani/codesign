@@ -76,6 +76,7 @@ class HardwareModel:
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
+        self.ram_recurrences = {}
         self.top_block_name = args["benchmark"] if not args["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
         self.dataflow_blocks = set()
 
@@ -108,6 +109,7 @@ class HardwareModel:
         self.scheduled_dfgs = {}
         self.loop_1x_graphs = {}
         self.loop_2x_graphs = {}
+        self.ram_recurrences = {}
         self.parasitic_graph = nx.DiGraph()
         #self.obj_sub_exprs = {}
         self.execution_time = 0
@@ -180,7 +182,6 @@ class HardwareModel:
         for node, data in self.netlist.nodes(data=True):
             fn = data.get("function", "N/A")
             rsc = data.get("name", None)
-            logger.info(f"fn: {fn}, rsc: {rsc}")
             if fn in logic_fns and rsc and rsc not in self.logic_unit_models:
                 self.logic_unit_models[rsc] = lum_module.LogicUnitModel(precomputed, rsc, fn)
             #elif fn in

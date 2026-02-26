@@ -813,6 +813,15 @@ vitis_test_sweep_bayesian_gemm:
   args:
     solver: bayesian
 
+vitis_test_sweep_dot_prod:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 5
+    benchmark: gemm
+    class: dot_prod
+
 run_sweep_mvs_1_spice:
   base_cfg: default
   args:

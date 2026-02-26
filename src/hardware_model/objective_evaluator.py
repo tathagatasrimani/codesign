@@ -100,6 +100,7 @@ class ObjectiveEvaluator:
         DFF_AREA: float,
         mem_access_db: Dict[str, Any] = None,
         logic_unit_models: Dict[str, Any] = None,
+        ram_recurrences: Dict[str, Any] = None,
     ):
         """
         Initialize the ObjectiveEvaluator.
@@ -136,6 +137,7 @@ class ObjectiveEvaluator:
         # Node labels are "<block_name>_<name_in_original_graph>".
         self.mem_access_db = mem_access_db or {}
         self.logic_unit_models = logic_unit_models or {}
+        self.ram_recurrences = ram_recurrences or {}
         self.first_write_times = {}
         self.first_write_blocks = {}
         self.last_read_times = {}
@@ -208,6 +210,7 @@ class ObjectiveEvaluator:
             DFF_AREA=hw.circuit_model.DFF_AREA,
             mem_access_db=hw.mem_access_db,
             logic_unit_models=hw.logic_unit_models,
+            ram_recurrences=hw.ram_recurrences,
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
@@ -325,10 +328,11 @@ class ObjectiveEvaluator:
         self.node_delay_breakdown = {}
         self.graph_delays = {}
         self.loop_delays_1x = {}  # loop_name -> delay of one iteration (ns)
+        self.loop_ii_info = {}  # loop_name -> {II, resource_II, recurrence_II, bottleneck, critical_recurrence_node, critical_recurrence_ns}
 
         for basic_block_name in self.scheduled_dfgs:
-            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
-            self.node_delay_breakdown[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}}
+            self.node_arrivals[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}, "loop_1x_full": {}}
+            self.node_delay_breakdown[basic_block_name] = {"full": {}, "loop_1x": {}, "loop_2x": {}, "loop_1x_full": {}}
 
         log_info(f"scheduled dfgs: {self.scheduled_dfgs.keys()}")
 
@@ -447,9 +451,39 @@ class ObjectiveEvaluator:
                             resource_delays_only=True
                         )
                         self.loop_delays_1x[loop_name] = delay_1x
-                        # TODO: add dependence of II on loop-carried dependency
-                        pred_delay = delay_1x * (int(dfg.nodes[pred]["count"]) - 1)
+                        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, tv)
+                        resource_II = math.ceil(delay_1x / clk_period) if clk_period > 0 else 1
+
+                        ram_recurrences = self.ram_recurrences.get(basic_block_name, {}).get(loop_name, {})
+                        log_info(f"ram_recurrences: {ram_recurrences} for loop {loop_name}")
+                        recurrence_II = 0
+                        crit_path = None
+                        for mem_name, recurrence_info in ram_recurrences.items():
+                            path_latency = 0
+                            for node in recurrence_info["path"]:
+                                latency = self._latency(dfg.nodes[node]["function"], dfg.nodes[node])
+                                log_info(f"latency: {latency} for node {node}")
+                                path_latency += math.ceil(latency / clk_period)
+                            store_node = recurrence_info["path"][-1]
+                            ram_depth = recurrence_info["depth"]
+                            assert ram_depth > 0
+                            candidate_II = math.ceil(path_latency / (ram_depth))
+                            if candidate_II > recurrence_II:
+                                recurrence_II = candidate_II
+                                crit_path = recurrence_info["path"]
+                            log_info(f"recurrence_II: {candidate_II} for store node {store_node} (mem {mem_name}) with ram depth {ram_depth}")
+
+                        II_cycles = max(resource_II, recurrence_II)
+                        pred_delay = II_cycles * clk_period * (int(dfg.nodes[pred]["count"]) - 1)
                         pred_bd_delta["clk"] = pred_delay
+                        self.loop_ii_info[loop_name] = {
+                            "II": II_cycles,
+                            "resource_II": resource_II,
+                            "recurrence_II": recurrence_II,
+                            "delay_1x_ns": delay_1x,
+                            "bottleneck": "resource" if resource_II >= recurrence_II else "recurrence",
+                            "critical_recurrence_path": crit_path,
+                        }
                     else:
                         pred_delay = sim_util.xreplace_safe(
                             self.tech_model.base_params.clk_period, tv

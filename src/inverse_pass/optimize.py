@@ -169,6 +169,7 @@ def _worker_basic_optimization_chunk(args_tuple):
                 passive_power_breakdown_pct=dict(evaluator.passive_power_breakdown_pct),
                 passive_power_memory_by_block=dict(evaluator.passive_power_memory_by_block),
                 passive_power_memory_by_block_pct=dict(evaluator.passive_power_memory_by_block_pct),
+                loop_ii_info=dict(evaluator.loop_ii_info),
             )
             results.append(result)
 
@@ -339,6 +340,7 @@ class Optimizer:
             "clk_period": r.clk_period,
             "satisfies_constraints": r.satisfies_constraints,
             "memory": r.design_point.get("memory", {}),
+            "loop_ii_info": r.loop_ii_info,
         } for r in sorted_results]
         summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
         with open(summary_path, "w") as f:
@@ -631,6 +633,14 @@ class Optimizer:
             pickle.dump(all_results, f)
         logger.info(f"Saved {len(all_results)} design point results to {results_path}")
 
+        def _group_mem(mem_dict):
+            out = {}
+            for name, info in mem_dict.items():
+                gk = mem_to_group.get(name, name)
+                if gk not in out:
+                    out[gk] = info
+            return out
+
         summary = [{
             "obj_value": r.obj_value,
             "execution_time": r.execution_time,
@@ -640,7 +650,8 @@ class Optimizer:
             "total_power": r.total_power,
             "clk_period": r.clk_period,
             "satisfies_constraints": r.satisfies_constraints,
-            "memory": r.design_point.get("memory", {}),
+            "memory": _group_mem(r.design_point.get("memory", {})),
+            "loop_ii_info": r.loop_ii_info,
         } for r in sorted_results]
         summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
         with open(summary_path, "w") as f:
