@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = True
+DEBUG = False
 
 def log_info(msg):
     if DEBUG:
@@ -159,6 +159,45 @@ def get_rsc_mapping(netlist_file):
         log_info(f"op: {op}, node: {node}")
     return netlist_op_dest_to_node
 
+def detect_distance_1_rams(lines):
+    """Detect RAM variables that have distance-1 loop-carried recurrences.
+
+    Vitis HLS inserts a reuse_addr_reg + addr_cmp forwarding circuit when consecutive
+    pipelined iterations access the same RAM address (i.e. the address expression does
+    not include the innermost loop IV).  The pattern is:
+        store %addr_var, %reuse_addr_reg   (saves current address each iteration)
+        getelementptr %array ... %addr_var (same addr_var used for the RAM GEP)
+    When found, the true recurrence distance is 1, not the full RAM buffer depth.
+    Returns a set of raw array variable names (without %) that have distance-1 recurrences.
+    """
+    stored_to_reuse = set()   # address variables stored into reuse_addr_reg vars
+    gep_addr_to_ram = {}      # addr_var -> raw array name (from getelementptr)
+
+    for line in lines:
+        if '--->' not in line:
+            continue
+        instr_section = line.split('--->')[1].strip()
+        quote_parts = instr_section.split('"')
+        if len(quote_parts) < 2:
+            continue
+        instruction = quote_parts[1]
+        tokens = instruction.split()
+        if len(tokens) < 3 or tokens[1] != '=':
+            continue
+        op = tokens[2]
+
+        if op == 'store' and len(tokens) >= 7 and 'reuse_addr_reg' in tokens[-1]:
+            # store i64 %addr_var, i64 %reuse_addr_reg  →  record addr_var
+            stored_to_reuse.add(tokens[4].strip(','))
+
+        elif op == 'getelementptr' and len(tokens) >= 5:
+            # %dst = getelementptr type %array, ..., %addr_var
+            ram_name = tokens[4].strip(',').lstrip('%')
+            addr_var = tokens[-1]
+            gep_addr_to_ram[addr_var] = ram_name
+
+    return {gep_addr_to_ram[v] for v in stored_to_reuse if v in gep_addr_to_ram}
+
 def construct_directed_graph_nx(state_ops,state_transitions):
     G = nx.DiGraph()
     for state in state_ops:
@@ -284,7 +323,7 @@ class MemRWDB:
             self.mem_rws.pop(mem_name)
 
 class DataFlowGraph:
-    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, mem_mapping, resource_delays_only=False, num_iters=1, mem_access_db=None, is_loop_dfg=False):
+    def __init__(self, clk_period, no_rsc_allowed_ops, allowed_functions, build_dir, basic_block_name, name, resource_mapping, states_structure, G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline, mem_mapping, resource_delays_only=False, num_iters=1, mem_access_db=None, is_loop_dfg=False, distance_1_rams=None):
         self.clk_period = clk_period
         self.allowed_functions = allowed_functions
         self.build_dir = build_dir
@@ -325,6 +364,7 @@ class DataFlowGraph:
                 self.register_mapping = json.load(f)
         # Loop-carried dependency tracking
         self.ram_recurrences = []            # [(store_node_name, ram_depth), ...] for RAM recurrences
+        self.distance_1_rams = distance_1_rams if distance_1_rams is not None else set()
 
     def track_resource_usage(self, node):
         if self.G.nodes[node]["node_type"] == "op" and self.G.nodes[node]["core_inst"] != "N/A":
@@ -364,7 +404,7 @@ class DataFlowGraph:
         for node, attrs in G_standard_with_wire_ops.nodes(data=True):
             fn = attrs.get("function")
             mem_name = attrs.get("mem_name")
-            depth = attrs.get("mem_depth")
+            depth = attrs.get("recurrence_depth", attrs.get("mem_depth"))
             loop_name = attrs.get("dfg_name")
             is_in_loop = attrs.get("is_in_loop")
             if not is_in_loop or not mem_name or not depth:
@@ -498,6 +538,7 @@ class DataFlowGraph:
                     self.arguments_to_call_functions[src] = []
                 if call_fn != "N/A":
                     self.arguments_to_call_functions[src].append(call_fn)
+            mem_name_original = None
             if instruction["core_inst"] == "RAM":
                 log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a RAM")
                 if instruction["op"] == "store":
@@ -552,7 +593,12 @@ class DataFlowGraph:
                 self.handle_read_or_load(op_name, mem_name, is_register)
             
             mem_depth = instruction["core_info"].get("Depth", 0) if instruction["core_info"] else 0
-            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name, mem_depth=mem_depth)
+            if mem_name_original is not None and mem_name_original in self.distance_1_rams:
+                log_info(f"distance-1 recurrence for {mem_name_original}: recurrence_depth=1 (mem_depth={mem_depth})")
+                recurrence_depth = 1
+            else:
+                recurrence_depth = mem_depth
+            self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name, mem_depth=mem_depth, recurrence_depth=recurrence_depth)
             self.track_resource_usage(op_name)
             for src in instruction["src"]:
                 src_name = self.variable_db.get_read_node_name(src)
@@ -587,7 +633,7 @@ class DataFlowGraph:
         for node in in_nodes_loop_start:
             G.add_edge(node, f"loop_start_{loop_name}", weight=0.0, resource_edge=0)
         # create the graph
-        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, mem_mapping=self.mem_mapping, resource_delays_only=resource_delays_only, num_iters=num_iters, mem_access_db=self.mem_access_db, is_loop_dfg=True)
+        loop_dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, loop_name, self.resource_mapping, self.states_structure.get_pruned_states_structure(self.states_structure.loops[loop_name]), G, G_standard, G_standard_with_wire_ops, resource_db, variable_db, is_dataflow_pipeline=self.states_structure.loops[loop_name].is_dataflow_pipeline, mem_mapping=self.mem_mapping, resource_delays_only=resource_delays_only, num_iters=num_iters, mem_access_db=self.mem_access_db, is_loop_dfg=True, distance_1_rams=self.distance_1_rams)
         
         loop_dfg.create_graph(resource_delays_only=resource_delays_only)
 
@@ -785,12 +831,13 @@ class BasicBlockInfo:
         self.is_dataflow_pipeline = False
         #assert self.mem_access_db is not None, "MemRWDB is not provided"
         self.mem_mapping = mem_mapping
+        self.distance_1_rams = set()
     
     def parse(self):
         self.parse_file(self.file_path)
 
     def convert(self):
-        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, self.mem_mapping, 1, mem_access_db=self.mem_access_db, is_loop_dfg=False)
+        self.dfg = DataFlowGraph(self.clk_period, self.no_rsc_allowed_ops, self.allowed_functions, self.build_dir, self.basic_block_name, self.basic_block_name, self.resource_mapping, self.states_structure, nx.DiGraph(), nx.DiGraph(), nx.DiGraph(), ResourceDB(), VariableDB(), self.is_dataflow_pipeline, self.mem_mapping, 1, mem_access_db=self.mem_access_db, is_loop_dfg=False, distance_1_rams=self.distance_1_rams)
         log_info(f"creating dfg for {self.basic_block_name}")
         self.dfg.create_graph()
         nx.write_gml(self.dfg.G, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph.gml")
@@ -818,6 +865,9 @@ class BasicBlockInfo:
         with open(file_path, "r") as file:
             lines = file.readlines()
             idx = 0
+
+            self.distance_1_rams = detect_distance_1_rams(lines)
+            log_info(f"distance_1_rams for {self.basic_block_name}: {self.distance_1_rams}")
 
             self.loops = self.extract_loop_info_xml(file_path + ".xml")
             for loop_name in self.loops:

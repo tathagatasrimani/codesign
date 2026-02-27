@@ -460,9 +460,9 @@ class ObjectiveEvaluator:
                         crit_path = None
                         for mem_name, recurrence_info in ram_recurrences.items():
                             path_latency = 0
-                            for node in recurrence_info["path"]:
-                                latency = self._latency(dfg.nodes[node]["function"], dfg.nodes[node])
-                                log_info(f"latency: {latency} for node {node}")
+                            for path_node in recurrence_info["path"]:
+                                latency = self._latency(dfg.nodes[path_node]["function"], dfg.nodes[path_node])
+                                log_info(f"latency: {latency} for node {path_node}")
                                 path_latency += math.ceil(latency / clk_period)
                             store_node = recurrence_info["path"][-1]
                             ram_depth = recurrence_info["depth"]
@@ -475,6 +475,7 @@ class ObjectiveEvaluator:
 
                         II_cycles = max(resource_II, recurrence_II)
                         pred_delay = II_cycles * clk_period * (int(dfg.nodes[pred]["count"]) - 1)
+                        log_info(f"II_delay: {pred_delay} for node {node} and pred {pred}")
                         pred_bd_delta["clk"] = pred_delay
                         self.loop_ii_info[loop_name] = {
                             "II": II_cycles,
@@ -538,8 +539,11 @@ class ObjectiveEvaluator:
                     self.node_arrivals[basic_block_name][graph_type][node] = arrival
                     pred_bd = self.node_delay_breakdown[basic_block_name][graph_type][pred]
                     self.node_delay_breakdown[basic_block_name][graph_type][node] = _add_bd(pred_bd, pred_bd_delta)
+                log_info(f"arrival: {arrival} for node {node} and pred {pred}")
 
-        return self.node_arrivals[basic_block_name][graph_type][graph_end_node]
+        execution_time = self.node_arrivals[basic_block_name][graph_type][graph_end_node]
+        log_info(f"execution_time: {execution_time} for node {node} and graph end node {graph_end_node}")
+        return execution_time
 
     def _wire_delay(self, edge) -> float:
         """
