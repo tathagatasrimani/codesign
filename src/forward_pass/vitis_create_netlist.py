@@ -339,6 +339,8 @@ def create_physical_design_netlist(parse_results_dir, top_module_name, allowed_f
         unified_id = f"mem_{mem_name}"
         mem_type = mem_info.get('type', 'unknown')
         func = 'fifo' if mem_type == 'fifo' else 'memory'
+        if mem_info.get('total_size', 0) <= 64:
+            func = 'Register16'
 
         G.add_node(unified_id,
                    name=mem_name,

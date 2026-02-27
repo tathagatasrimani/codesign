@@ -30,15 +30,15 @@ default:
     streamhls_opt_level: 5
     min_dsp: 13
     max_power_density: 100000000 # W/mm^2, not active right now
-    max_power: 150 # W
+    max_power: 15000000000000000000 # W
     solver: ipopt
     fixed_area_increase_pattern: False
     historical_trend_pipeline: False
     leakage_restriction: False
     MUL_restriction: False
-    fu_grouping: by_function
+    fu_grouping: shared
     mem_grouping: by_capacity
-    sampler: qmc
+    sampler: tpe
 
 
 vitis_test_mvs:

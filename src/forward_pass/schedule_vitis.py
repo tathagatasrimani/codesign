@@ -14,7 +14,7 @@ from src.forward_pass import llvm_ir_parse
 from src.forward_pass import vitis_create_netlist
 from src import sim_util
 
-DEBUG = False
+DEBUG = True
 
 def log_info(msg):
     if DEBUG:
@@ -236,6 +236,11 @@ class MemRWInfo:
         log_info(f"set_first_read_dataflow: {self.mem_name} {basic_block_name}")
         log_info(f"after setting first read dataflow, read info is {self.first_read} {self.read_basic_block_name}")
 
+    def __repr__(self):
+        return f"MemRWInfo(mem_name={self.mem_name}, first_read={self.first_read}, first_write={self.first_write}, last_read={self.last_read}, last_read_basic_block_name={self.last_read_basic_block_name}, read_basic_block_name={self.read_basic_block_name}, write_basic_block_name={self.write_basic_block_name}, is_fifo={self.is_fifo})"
+    def __str__(self):
+        return self.__repr__()
+
 class MemRWDB:
     def __init__(self):
         self.mem_rws = {}
@@ -423,7 +428,9 @@ class DataFlowGraph:
                 G.add_edge(src, dst, weight=G.edges[src, node]["weight"], resource_edge=0)
         G.remove_node(node)
 
-    def handle_write_or_store(self, op_name, mem_name):
+    def handle_write_or_store(self, op_name, mem_name, is_register):
+        if is_register and mem_name not in self.mem_access_db.mem_rws:
+            return
         assert mem_name in self.mem_access_db.mem_rws, f"Memory {mem_name} not found in mem_access_db"
         current_write = self.mem_access_db.mem_rws[mem_name]
         if current_write.first_write is None:
@@ -436,7 +443,9 @@ class DataFlowGraph:
                 f"({current_write.first_write} in {current_write.write_basic_block_name}); "
                 f"skipping {op_name} in {self.basic_block_name}"
             )
-    def handle_read_or_load(self, op_name, mem_name):
+    def handle_read_or_load(self, op_name, mem_name, is_register):
+        if is_register and mem_name not in self.mem_access_db.mem_rws:
+            return
         assert mem_name in self.mem_access_db.mem_rws, f"Memory {mem_name} not found in mem_access_db"
         current_read = self.mem_access_db.mem_rws[mem_name]
         current_read.set_last_read(op_name, self.basic_block_name)
@@ -508,7 +517,7 @@ class DataFlowGraph:
 
                 if mem_name not in self.mem_access_db.mem_rws:
                     self.mem_access_db.add_memory(mem_name, is_fifo=False)
-                is_register = False
+                is_register = (mem_size <= 64)
             elif instruction["core_inst"] == "FIFO" or instruction["core_inst"] == "FIFO_SRL":
                 log_info(f"instruction {instruction} in basic block {self.basic_block_name} is a FIFO")
                 if instruction["op"] == "read":
@@ -518,7 +527,7 @@ class DataFlowGraph:
                 mem_name = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["parent_fifo"]
                 mem_size = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["total_size"]
                 is_top_interface = False
-                is_register = False
+                is_register = (mem_size <= 64)
             elif fn_out in _MEMORY_OPS:
                 # Look up register name from register_mapping if available
                 reg_info = self.register_mapping.get(self.basic_block_name, {}).get(dst_name, None)
@@ -537,11 +546,10 @@ class DataFlowGraph:
                 is_register = False
             
             # handle write or read for non-register memories
-            if not is_register:
-                if instruction["op"] == "store" or instruction["op"] == "write":
-                    self.handle_write_or_store(op_name, mem_name)
-                elif instruction["op"] == "load" or instruction["op"] == "read":
-                    self.handle_read_or_load(op_name, mem_name)
+            if instruction["op"] == "store" or instruction["op"] == "write":
+                self.handle_write_or_store(op_name, mem_name, is_register)
+            elif instruction["op"] == "load" or instruction["op"] == "read":
+                self.handle_read_or_load(op_name, mem_name, is_register)
             
             mem_depth = instruction["core_info"].get("Depth", 0) if instruction["core_info"] else 0
             self.G.add_node(op_name, node_type=instruction["type"], function=fn_out, function_out=fn_out, rsc=rsc_name, core_inst=instruction["core_inst"], core_id=core_id, rsc_name_unique=rsc_name_unique, call_function=call_fn, original_name=instruction["op"], mem_name=mem_name, is_register=is_register, mem_size=mem_size, is_top_interface=is_top_interface, is_in_loop=self.is_loop_dfg, dfg_name=self.name, mem_depth=mem_depth)
@@ -1025,6 +1033,7 @@ class vitis_schedule_parser:
         for basic_block_name in self.basic_blocks.keys():
             if self.basic_blocks[basic_block_name].is_dataflow_pipeline:
                 self.init_flattened_graph(basic_block_name, self.basic_blocks[basic_block_name].dfg)
+                log_info(f"access db: {[{mem_name: self.mem_access_db.mem_rws[mem_name]} for mem_name in self.mem_access_db.mem_rws]}")
                 self.connect_flattened_graph(self.basic_blocks[basic_block_name].dfg)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard = self.basic_blocks[basic_block_name].dfg.standard_dfg_basic_block_new(self.basic_blocks[basic_block_name].dfg.G_flattened, create_loop_standard_dfgs=False)
                 self.basic_blocks[basic_block_name].dfg.G_flattened_standard_with_wire_ops = self.basic_blocks[basic_block_name].dfg.add_wire_ops(self.basic_blocks[basic_block_name].dfg.G_flattened_standard)
