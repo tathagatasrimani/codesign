@@ -403,8 +403,6 @@ def visualize_memory_latency_scatter(
 
         hit_lats   = np.array([float(m.get(hit_col,   0)) + eps for m in mem_infos])
         write_lats = np.array([float(m.get(write_col, 0)) + eps for m in mem_infos])
-        log_hit    = np.log10(hit_lats)
-        log_write  = np.log10(write_lats)
 
         capacity = mem_infos[0].get("capacity") if mem_infos else None
         cap_str  = f"  [{capacity}]" if capacity else ""
@@ -412,28 +410,43 @@ def visualize_memory_latency_scatter(
         plt.rcdefaults()
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        scatter = ax.scatter(log_hit[1:], log_write[1:], c=mem_colors[1:],
+        scatter = ax.scatter(hit_lats[1:], write_lats[1:], c=mem_colors[1:],
                              cmap='viridis_r', s=100, alpha=0.75,
                              edgecolors='white', linewidths=0.3)
-        ax.scatter([log_hit[0]], [log_write[0]], c='red', s=600, marker='*',
+        ax.scatter([hit_lats[0]], [write_lats[0]], c='red', s=600, marker='*',
                    label='Best Design', zorder=6, edgecolors='black', linewidths=2)
         ax.scatter([], [], c='gray', s=100, alpha=0.75,
                    edgecolors='white', label='Valid Design')
 
-        ax.set_xlabel(f'{hit_col} [log₁₀]',   fontsize=14, labelpad=6, fontweight='bold')
-        ax.set_ylabel(f'{write_col} [log₁₀]', fontsize=14, labelpad=6, fontweight='bold')
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(hit_col,   fontsize=14, labelpad=6, fontweight='bold')
+        ax.set_ylabel(write_col, fontsize=14, labelpad=6, fontweight='bold')
         ax.tick_params(labelsize=11)
         ax.grid(True, alpha=0.3, linestyle='--')
-        ax.set_title(f'Memory Hit vs Write Latency: {mem_name}{cap_str}  (log₁₀ scale)',
+        ax.set_title(f'Memory Hit vs Write Latency: {mem_name}{cap_str}',
                      fontsize=15, fontweight='bold', pad=10)
         ax.legend(fontsize=12, loc='upper left', framealpha=0.9)
 
         cbar = fig.colorbar(scatter, ax=ax, shrink=0.8, pad=0.02)
         cbar.set_label(f'System {obj_type.upper()}', fontsize=14, labelpad=2, fontweight='bold')
-        cbar.set_ticks([0, 1])
-        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        obj_vals = [r.obj_value for r in top_results]
+        obj_min, obj_max = min(obj_vals), max(obj_vals)
+        if obj_max > obj_min:
+            log_min = np.log(obj_min + eps)
+            log_max = np.log(obj_max + eps)
+            tick_positions = [0, 0.25, 0.5, 0.75, 1.0]
+            tick_vals = [np.exp(log_min + c * (log_max - log_min)) for c in tick_positions]
+            tick_labels = [f'{v:.2e}' for v in tick_vals]
+            tick_labels[0] = f'Best\n{tick_vals[0]:.2e}'
+            tick_labels[-1] = f'Worst\n{tick_vals[-1]:.2e}'
+        else:
+            tick_positions = [0, 1]
+            tick_labels = ['Best', 'Worst']
+        cbar.set_ticks(tick_positions)
+        cbar.set_ticklabels(tick_labels, fontweight='bold')
         cbar.ax.invert_yaxis()
-        cbar.ax.tick_params(labelsize=12)
+        cbar.ax.tick_params(labelsize=10)
 
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
