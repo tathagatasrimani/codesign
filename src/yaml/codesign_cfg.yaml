@@ -38,7 +38,7 @@ default:
     MUL_restriction: False
     fu_grouping: by_function
     mem_grouping: by_capacity
-    sampler: tpe
+    sampler: qmc
 
 
 vitis_test_mvs:

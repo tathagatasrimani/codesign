@@ -364,7 +364,7 @@ class DataFlowGraph:
             is_in_loop = attrs.get("is_in_loop")
             if not is_in_loop or not mem_name or not depth:
                 continue
-            logger.info(f"node: {node}, fn: {fn}, mem_name: {mem_name}, depth: {depth}")
+            log_info(f"node: {node}, fn: {fn}, mem_name: {mem_name}, depth: {depth}")
             if fn in ("load", "read"):
                 read_mems.setdefault(loop_name, {}).setdefault(mem_name, []).append((node, depth))
             elif fn in ("store", "write"):
@@ -373,9 +373,9 @@ class DataFlowGraph:
         for loop_name in read_mems.keys() & write_nodes.keys():
             result[loop_name] = {}
             for mem_name in read_mems[loop_name].keys() & write_nodes[loop_name].keys():
-                logger.info(f"Computing ram recurrence for loop {loop_name} and mem {mem_name}")
-                logger.info(f"read_mems: {read_mems[loop_name][mem_name]}")
-                logger.info(f"write_nodes: {write_nodes[loop_name][mem_name]}")
+                log_info(f"Computing ram recurrence for loop {loop_name} and mem {mem_name}")
+                log_info(f"read_mems: {read_mems[loop_name][mem_name]}")
+                log_info(f"write_nodes: {write_nodes[loop_name][mem_name]}")
                 if nx.has_path(G_standard_with_wire_ops, read_mems[loop_name][mem_name][0][0], write_nodes[loop_name][mem_name][0][0]):
                     path = nx.shortest_path(G_standard_with_wire_ops, read_mems[loop_name][mem_name][0][0], write_nodes[loop_name][mem_name][0][0])
                     res_dict = {
@@ -519,7 +519,7 @@ class DataFlowGraph:
                 mem_size = self.mem_mapping[self.basic_block_name]["fifo_ports"][mem_name_original]["total_size"]
                 is_top_interface = False
                 is_register = False
-            else:
+            elif fn_out in _MEMORY_OPS:
                 # Look up register name from register_mapping if available
                 reg_info = self.register_mapping.get(self.basic_block_name, {}).get(dst_name, None)
                 if reg_info and "register" in reg_info:
@@ -530,6 +530,11 @@ class DataFlowGraph:
                     mem_size = 0
                 is_top_interface = False
                 is_register = True
+            else:
+                mem_name = "N/A"
+                mem_size = 0
+                is_top_interface = False
+                is_register = False
             
             # handle write or read for non-register memories
             if not is_register:
@@ -879,9 +884,9 @@ class BasicBlockInfo:
                         parsed_op = llvm_ir_parse.parse_op(instruction, operation_name)
                         if parsed_op["type"] == "intf":
                             if self.basic_block_name in self.mem_mapping:
-                                if parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["fifo_ports"]:
+                                if "fifo_ports" in self.mem_mapping[self.basic_block_name] and parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["fifo_ports"]:
                                     mem_name = self.mem_mapping[self.basic_block_name]["fifo_ports"][parsed_op["variable"].strip("%")]["parent_fifo"]
-                                elif parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["memory_ports"]:
+                                elif "memory_ports" in self.mem_mapping[self.basic_block_name] and parsed_op["variable"].strip("%") in self.mem_mapping[self.basic_block_name]["memory_ports"]:
                                     mem_name = self.mem_mapping[self.basic_block_name]["memory_ports"][parsed_op["variable"].strip("%")]["child_port"]
                                 else:
                                     raise ValueError(f"variable {parsed_op['variable']} is not in fifo ports or memory ports for basic block {self.basic_block_name} in mem_mapping: {self.mem_mapping}")

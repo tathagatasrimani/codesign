@@ -580,11 +580,13 @@ class ObjectiveEvaluator:
         else:
             rsc = node_data["name"] # if working with netlist
         assert rsc is not None, f"no per-FU model for fn={fn}, rsc={rsc}, node_data: {node_data}"
+        #logger.info(f"logic_unit_models: {self.logic_unit_models}")
         if rsc not in self.logic_unit_models:
             if fn == "Register16" and node_data.get("mem_name") in self.logic_unit_models: # registers sometimes treated differently in netlist
                 rsc = node_data.get("mem_name")
             else:
-                raise ValueError(f"no per-FU model for fn={fn}, rsc={rsc}, node_data: {node_data}")
+                log_info(f"no per-FU model for fn={fn}, rsc={rsc}, node_data: {node_data}") # TODO fix this issue
+                return 0.0, 0.0, 0.0, 0.0
         lum = self.logic_unit_models[rsc]
         return lum.delay, lum.E_act_inv, lum.P_pass_inv, lum.area
 

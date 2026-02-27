@@ -401,7 +401,7 @@ def create_physical_design_netlist(parse_results_dir, top_module_name, allowed_f
                 continue
             bind = n_data.get('bind', {})
             fcode = bind.get('fcode', '') if isinstance(bind, dict) else ''
-            if fcode in ('store', 'load'):
+            if fcode in ('store', 'load', "read", "write"):
                 related_nodes.add(neighbor)
 
         # Extract bitwidth from register output pin

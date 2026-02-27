@@ -182,8 +182,11 @@ class HardwareModel:
         for node, data in self.netlist.nodes(data=True):
             fn = data.get("function", "N/A")
             rsc = data.get("name", None)
+            logger.info(f"creating logic unit model for fn: {fn}, rsc: {rsc}")
             if fn in logic_fns and rsc and rsc not in self.logic_unit_models:
                 self.logic_unit_models[rsc] = lum_module.LogicUnitModel(precomputed, rsc, fn)
+            elif fn == "read" or fn == "write" and rsc and rsc not in self.logic_unit_models: # make one in case this is for a register
+                self.logic_unit_models[rsc] = lum_module.LogicUnitModel(precomputed, rsc, "Register16")
             #elif fn in
         self.circuit_model.set_logic_unit_models(self.logic_unit_models)
         logger.info(f"Created {len(self.logic_unit_models)} LogicUnitModel instances from netlist")

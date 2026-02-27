@@ -705,8 +705,9 @@ class SystemCodesign:
 
         if solver == "bayesian":
             n_trials = int(constraints.get("n_trials", 500))
+            n_pca_components = int(constraints.get("n_pca_components", 3))
             return self._optimize_system_bayesian(
-                block_names, candidate_lists, objective, shared_tech, constraints, n_trials
+                block_names, candidate_lists, objective, shared_tech, constraints, n_trials, n_pca_components
             )
 
         # --- basic: exhaustive cross-product ---
@@ -765,28 +766,34 @@ class SystemCodesign:
         shared_tech: bool,
         constraints: dict,
         n_trials: int = 500,
+        n_pca_components: int = 3,
     ) -> Optional[SystemDesignPoint]:
         """Bayesian optimization over the system design space using Optuna TPE.
 
-        Each trial proposes one candidate index per block type.  Since metric
-        composition is cheap (pure arithmetic over precomputed block results),
-        trials are evaluated serially — parallelism would add overhead without
-        benefit here.
+        Each block's candidate pool is projected into PCA space (execution_time,
+        active_energy, passive_energy, area) so the TPE surrogate learns geometry
+        rather than arbitrary integer indices.  Trials propose continuous PCA
+        coordinates and snap to the nearest valid candidate via NearestNeighbors.
+        Constraint violations are recorded as user attrs so TPE can model
+        feasibility separately from the objective.
 
         Args:
-            block_names:     Sorted list of block type names.
-            candidate_lists: Corresponding list of candidate DesignPointResults
-                             (sorted by per-block obj_value, best first).
-            objective:       System-level objective string (e.g. "edp").
-            shared_tech:     If True, only combinations where all blocks share
-                             the same logic design point are considered valid.
-            constraints:     Raw system_constraints dict from the config.
-            n_trials:        Number of Optuna trials to run (default 500).
+            block_names:      Sorted list of block type names.
+            candidate_lists:  Corresponding list of candidate DesignPointResults
+                              (sorted by per-block obj_value, best first).
+            objective:        System-level objective string (e.g. "edp").
+            shared_tech:      If True, only combinations where all blocks share
+                              the same logic design point are considered valid.
+            constraints:      Raw system_constraints dict from the config.
+            n_trials:         Number of Optuna trials to run (default 500).
+            n_pca_components: PCA components for each block's design space (default 3).
         """
         try:
             import optuna
         except ImportError:
             raise ImportError("optuna is required for Bayesian optimization: pip install optuna")
+        import numpy as np
+        from src.inverse_pass.optimize import DesignSpaceNN
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         total_combos = math.prod(len(cl) for cl in candidate_lists)
@@ -796,6 +803,30 @@ class SystemCodesign:
             f"= {total_combos} combinations"
         )
 
+        # Fit a PCA-parameterized NN for each block type using key system metrics.
+        _FEAT_ATTRS = ["execution_time", "total_active_energy", "total_passive_energy", "total_area"]
+        block_nns = {}
+        for bn, cl in zip(block_names, candidate_lists):
+            X = np.array([[getattr(r, f) for f in _FEAT_ATTRS] for r in cl], dtype=float)
+            block_nns[bn] = DesignSpaceNN(X, n_components=n_pca_components)
+            logger.info(
+                f"Block '{bn}' NN: {block_nns[bn].n_components} PCA components, "
+                f"variance explained: {block_nns[bn].explained_variance_ratio_.cumsum()[-1]:.1%}"
+            )
+
+        # Precompute constraint limits for violation reporting (<=0 satisfied, >0 violated).
+        max_power = float(constraints.get("max_total_power", float("inf")))
+        max_area_c = float(constraints.get("max_total_area", float("inf")))
+
+        def _constraint_violations(system_point):
+            if system_point.system_execution_time > 0:
+                power = system_point.system_total_energy / system_point.system_execution_time
+            else:
+                power = float("inf")
+            pv = power / max_power - 1 if math.isfinite(max_power) else -1.0
+            av = system_point.system_total_area / max_area_c - 1 if math.isfinite(max_area_c) else -1.0
+            return [pv, av]
+
         best_system: Optional[SystemDesignPoint] = None
         best_obj = math.inf
 
@@ -804,7 +835,7 @@ class SystemCodesign:
 
             assignments = {}
             for bn, cl in zip(block_names, candidate_lists):
-                idx = trial.suggest_int(f"block_{bn}", 0, len(cl) - 1)
+                idx = block_nns[bn].suggest_and_lookup(trial, f"block_{bn}")
                 assignments[bn] = cl[idx]
 
             if shared_tech:
@@ -813,12 +844,13 @@ class SystemCodesign:
                     for r in assignments.values()
                 ]
                 if not all(lp == logic_points[0] for lp in logic_points):
+                    trial.set_user_attr("constraints", [1.0, 0.0])
                     return float("inf")
 
             system_point = self._compose_system_metrics(assignments, objective)
-            system_point.satisfies_system_constraints = (
-                self._check_system_constraints(system_point, constraints)
-            )
+            violations = _constraint_violations(system_point)
+            trial.set_user_attr("constraints", violations)
+            system_point.satisfies_system_constraints = all(v <= 0 for v in violations)
 
             if not system_point.satisfies_system_constraints:
                 return float("inf")
@@ -831,7 +863,10 @@ class SystemCodesign:
 
         study = optuna.create_study(
             direction="minimize",
-            sampler=optuna.samplers.TPESampler(seed=42),
+            sampler=optuna.samplers.TPESampler(
+                seed=42,
+                constraints_func=lambda trial: trial.user_attrs.get("constraints", [-1.0, -1.0]),
+            ),
         )
         study.optimize(optuna_objective, n_trials=n_trials, show_progress_bar=False)
 
@@ -1198,19 +1233,39 @@ class SystemCodesign:
                 "passive_power_memory_by_block_W": best_system.system_passive_power_memory_by_block,
                 "passive_power_memory_by_block_pct": best_system.system_passive_power_memory_by_block_pct,
             }
+            def _group_mem_by_capacity(mem_dict):
+                out = {}
+                for name, info in mem_dict.items():
+                    gk = info.get("capacity", name) if isinstance(info, dict) else name
+                    if gk not in out:
+                        out[gk] = info
+                return out
+
+            def _group_fu_logic_by_function(fu_dict):
+                out = {}
+                for name, info in fu_dict.items():
+                    gk = info.get("function", name) if isinstance(info, dict) else name
+                    if gk not in out:
+                        out[gk] = info
+                return out
+
             instance_counts = self._count_block_instances()
             for block_name, result in best_system.block_assignments.items():
+                dp = result.design_point
+                grouped_dp = {
+                    **dp,
+                    "memory": _group_mem_by_capacity(dp.get("memory", {})),
+                    "fu_logic": _group_fu_logic_by_function(dp.get("fu_logic", {})),
+                }
                 report["blocks"][block_name] = {
                     "repeat_count": self.system_cfg["block_types"][block_name].get("repeat_count", 1),
                     "total_instances": instance_counts.get(block_name, 1),
-                    "design_point": result.design_point,
+                    "design_point": grouped_dp,
                     "execution_time_ns": result.execution_time,
                     "total_active_energy_nJ": result.total_active_energy,
                     "total_passive_energy_nJ": result.total_passive_energy,
                     "total_area_um2": result.total_area,
                     "clk_period_ns": result.clk_period,
-                    "V_dd": result.V_dd,
-                    "L": result.L,
                     "latency_breakdown_pct": getattr(result, "latency_breakdown_pct", {}),
                     "latency_memory_by_block_pct": getattr(result, "latency_memory_by_block_pct", {}),
                     "total_logic_ops": getattr(result, "total_logic_ops", 0),

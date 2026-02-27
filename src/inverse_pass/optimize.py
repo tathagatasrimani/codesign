@@ -329,6 +329,22 @@ class Optimizer:
             pickle.dump(all_results, f)
         logger.info(f"Saved {len(all_results)} design point results to {results_path}")
 
+        def _group_mem_by_capacity(mem_dict):
+            out = {}
+            for name, info in mem_dict.items():
+                gk = info.get("capacity", name) if isinstance(info, dict) else name
+                if gk not in out:
+                    out[gk] = info
+            return out
+
+        def _group_fu_logic_by_function(fu_dict):
+            out = {}
+            for name, info in fu_dict.items():
+                gk = info.get("function", name) if isinstance(info, dict) else name
+                if gk not in out:
+                    out[gk] = info
+            return out
+
         # Save JSON summary of top valid results
         summary = [{
             "obj_value": r.obj_value,
@@ -339,7 +355,8 @@ class Optimizer:
             "total_power": r.total_power,
             "clk_period": r.clk_period,
             "satisfies_constraints": r.satisfies_constraints,
-            "memory": r.design_point.get("memory", {}),
+            "memory": _group_mem_by_capacity(r.design_point.get("memory", {})),
+            "fu_logic": _group_fu_logic_by_function(r.design_point.get("fu_logic", {})),
             "loop_ii_info": r.loop_ii_info,
         } for r in sorted_results]
         summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
@@ -641,6 +658,14 @@ class Optimizer:
                     out[gk] = info
             return out
 
+        def _group_fu_logic(fu_dict):
+            out = {}
+            for name, info in fu_dict.items():
+                gk = rsc_to_fu_group.get(name, info.get("function", name) if isinstance(info, dict) else name)
+                if gk not in out:
+                    out[gk] = info
+            return out
+
         summary = [{
             "obj_value": r.obj_value,
             "execution_time": r.execution_time,
@@ -651,6 +676,7 @@ class Optimizer:
             "clk_period": r.clk_period,
             "satisfies_constraints": r.satisfies_constraints,
             "memory": _group_mem(r.design_point.get("memory", {})),
+            "fu_logic": _group_fu_logic(r.design_point.get("fu_logic", {})),
             "loop_ii_info": r.loop_ii_info,
         } for r in sorted_results]
         summary_path = os.path.join(self.save_dir, f"design_point_summary_iter_{self.iteration}.json")
