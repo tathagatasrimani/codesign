@@ -54,13 +54,13 @@ vitis_stream_atax:
     arch_opt_pipeline: streamhls
     min_dsp: 10
 
-vitis_stream_sgd_sw:
-  base_cfg: vitis_test
-  args:
-    benchmark: sgd_sw
-    min_dsp: 100
-    arch_opt_pipeline: streamhls
-    pytorch: True
+# vitis_stream_sgd_sw:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: sgd_sw
+#     min_dsp: 100
+#     arch_opt_pipeline: streamhls
+#     pytorch: True
 
 vitis_stream_syr2k:
   base_cfg: vitis_test
