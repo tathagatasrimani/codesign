@@ -1,6 +1,7 @@
 vitis_stream_gemm:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gemm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -8,6 +9,7 @@ vitis_stream_gemm:
 vitis_stream_gesummv_test:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gesummv
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -16,6 +18,7 @@ vitis_stream_gesummv_test:
 vitis_stream_k2mm:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: k2mm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -24,6 +27,7 @@ vitis_stream_k2mm:
 vitis_stream_k3mm:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: k3mm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -32,6 +36,7 @@ vitis_stream_k3mm:
 vitis_stream_bicg:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: bicg
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -40,6 +45,7 @@ vitis_stream_bicg:
 vitis_stream_mvt_1:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: mvt
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -48,6 +54,7 @@ vitis_stream_mvt_1:
 vitis_stream_atax:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: atax
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -57,6 +64,7 @@ vitis_stream_atax:
 # vitis_stream_sgd_sw:
 #   base_cfg: vitis_test
 #   args:
+#     stop_at_checkpoint: pd
 #     benchmark: sgd_sw
 #     min_dsp: 100
 #     arch_opt_pipeline: streamhls
@@ -65,6 +73,7 @@ vitis_stream_atax:
 vitis_stream_syr2k:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: syr2k
     min_dsp: 50 # not an optimized choice
     arch_opt_pipeline: streamhls

@@ -5,6 +5,7 @@
 scalehls_gemm_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gemm
     arch_opt_pipeline: scalehls
     min_dsp: 13
@@ -12,6 +13,7 @@ scalehls_gemm_cmp:
 streamhls_gemm_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gemm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -21,6 +23,7 @@ streamhls_gemm_cmp:
 scalehls_gesummv_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gesummv
     arch_opt_pipeline: scalehls
     min_dsp: 18
@@ -28,6 +31,7 @@ scalehls_gesummv_cmp:
 streamhls_gesummv_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: gesummv
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -37,6 +41,7 @@ streamhls_gesummv_cmp:
 streamhls_k2mm_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: k2mm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -46,6 +51,7 @@ streamhls_k2mm_cmp:
 streamhls_k3mm_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: k3mm
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -55,6 +61,7 @@ streamhls_k3mm_cmp:
 streamhls_bicg_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: bicg
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -64,6 +71,7 @@ streamhls_bicg_cmp:
 streamhls_mvt_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: mvt
     arch_opt_pipeline: streamhls
     pytorch: True
@@ -73,6 +81,7 @@ streamhls_mvt_cmp:
 streamhls_atax_cmp:
   base_cfg: vitis_test
   args:
+    stop_at_checkpoint: pd
     benchmark: atax
     arch_opt_pipeline: streamhls
     pytorch: True
