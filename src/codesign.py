@@ -4,7 +4,9 @@ import yaml
 import sys
 import datetime
 import json
+import csv
 import math
+import re
 import logging
 import shutil
 import subprocess
@@ -71,6 +73,7 @@ class Codesign:
         self.obj_fn = self.cfg["args"]["obj"]
         self.tmp_dir = self.get_tmp_dir()
         print(f"tmp_dir: {self.tmp_dir}")
+        self.run_output_dir = os.path.join(self.codesign_root_dir, self.tmp_dir)
         self.benchmark_dir = f"{self.tmp_dir}/benchmark"
         self.benchmark_setup_dir = f"{self.tmp_dir}/benchmark_setup"
         tmp_dir_suffix = self.tmp_dir.split("/")[-1]
@@ -147,6 +150,11 @@ class Codesign:
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
         self.config_json_path = self.benchmark_setup_dir + "/config.json"
+
+        # Single-run metrics export state
+        self.pass_snapshots = []
+        self.latest_forward_metrics = None
+        self._mlir_ops_cache = None
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -225,6 +233,254 @@ class Codesign:
         logger.info(f"passive power (nW):\n {passive_power}")
 
         #logger.info(f"compute operation totals in fw pass:\n {self.hw.compute_operation_totals}")
+
+    def _safe_eval_float(self, expr):
+        if expr is None:
+            return None
+        try:
+            return float(sim_util.xreplace_safe(expr, self.hw.circuit_model.tech_model.base_params.tech_values))
+        except Exception:
+            try:
+                return float(expr)
+            except Exception:
+                return None
+
+    def _count_ops_in_mlir_text(self, mlir_text: str) -> int:
+        count = 0
+        for line in mlir_text.split("\n"):
+            line = line.strip()
+            if not line or line.startswith('//') or line.startswith('#'):
+                continue
+            if ('=' in line and not line.startswith('module') and not line.startswith('func')) or \
+               any(op in line for op in ['arith.', 'affine.', 'memref.', 'scf.', 'linalg.', 'func.call', 'func.return']):
+                count += 1
+        return count
+
+    def _find_mlir_file_for_run(self):
+        candidates = [
+            os.path.join(self.benchmark_dir, f"{self.benchmark_name}.mlir"),
+            os.path.join(self.benchmark_setup_dir, f"{self.benchmark_name}.mlir"),
+        ]
+        for p in candidates:
+            if os.path.exists(p):
+                return p
+
+        # Fallback: search benchmark and setup dirs for any .mlir
+        for base_dir in [self.benchmark_dir, self.benchmark_setup_dir]:
+            if not os.path.isdir(base_dir):
+                continue
+            for root, dirs, files in os.walk(base_dir):
+                for f in files:
+                    if f.endswith('.mlir'):
+                        return os.path.join(root, f)
+        return None
+
+    def _get_mlir_ops_count(self):
+        if self._mlir_ops_cache is not None:
+            return self._mlir_ops_cache
+
+        mlir_file = self._find_mlir_file_for_run()
+        if mlir_file and os.path.exists(mlir_file):
+            with open(mlir_file, 'r') as f:
+                self._mlir_ops_cache = self._count_ops_in_mlir_text(f.read())
+        else:
+            self._mlir_ops_cache = 0
+        return self._mlir_ops_cache
+
+    def _extract_area_from_pd_log(self):
+        pd_log_file = os.path.join(self.tmp_dir, 'pd', 'codesign_pd.log')
+        if not os.path.exists(pd_log_file):
+            return 0.0
+
+        with open(pd_log_file, 'r') as f:
+            content = f.read()
+
+        patterns = [
+            r"\[INFO\s+GPL-0016\]\s+Core area:\s*([\d.eE+-]+)\s*um\^2",
+            r"Floorplan area:\s*([\d.eE+-]+)",
+            r"Area of std cell instances \+ Area of macros:\s*([\d.eE+-]+)",
+        ]
+        for pat in patterns:
+            m = re.search(pat, content, re.IGNORECASE)
+            if m:
+                try:
+                    return float(m.group(1))
+                except Exception:
+                    continue
+        return 0.0
+
+    def _get_workload_tag(self):
+        workload_size = None
+        if isinstance(self.cfg.get("args"), dict):
+            workload_size = self.cfg["args"].get("workload_size")
+        return f"N{workload_size}" if workload_size is not None else "N?"
+
+    def _capture_pass_snapshot(self, phase: str, iteration: int):
+        execution_time_ns = self._safe_eval_float(self.hw.execution_time)
+        clk_period_ns = self._safe_eval_float(self.hw.circuit_model.tech_model.base_params.clk_period)
+        if clk_period_ns is None:
+            clk_period_ns = self._safe_eval_float(getattr(self, "clk_period", None))
+
+        total_energy_nj = self._safe_eval_float(self.hw.total_active_energy + self.hw.total_passive_energy)
+        delay_cycles = None
+        if execution_time_ns is not None and clk_period_ns not in (None, 0):
+            delay_cycles = execution_time_ns / clk_period_ns
+
+        edp = None
+        if execution_time_ns is not None and total_energy_nj is not None:
+            edp = total_energy_nj * execution_time_ns
+
+        energy_pj = total_energy_nj * 1000 if total_energy_nj is not None else None
+        physical_area_um2 = self._extract_area_from_pd_log()
+
+        snapshot = {
+            "iteration": iteration,
+            "phase": phase,
+            "edp": edp,
+            "execution_time_ns": execution_time_ns,
+            "clk_period_ns": clk_period_ns,
+            "delay_cycles": delay_cycles,
+            "energy_pj": energy_pj,
+            "physical_area_um2": physical_area_um2,
+        }
+        self.pass_snapshots.append(snapshot)
+
+        if phase == "forward":
+            self.latest_forward_metrics = {
+                "execution_time_ns": execution_time_ns,
+                "delay_cycles": delay_cycles,
+                "energy_pj": energy_pj,
+                "physical_area_um2": physical_area_um2,
+            }
+
+    def _build_single_run_benchmark_data(self):
+        workload_tag = self._get_workload_tag()
+        mlir_ops = self._get_mlir_ops_count()
+
+        if self.latest_forward_metrics is not None:
+            base_metrics = self.latest_forward_metrics
+        elif self.pass_snapshots:
+            latest = self.pass_snapshots[-1]
+            base_metrics = {
+                "execution_time_ns": latest.get("execution_time_ns"),
+                "delay_cycles": latest.get("delay_cycles"),
+                "energy_pj": latest.get("energy_pj"),
+                "physical_area_um2": latest.get("physical_area_um2", 0.0),
+            }
+        else:
+            base_metrics = {
+                "execution_time_ns": 0.0,
+                "delay_cycles": 0.0,
+                "energy_pj": 0.0,
+                "physical_area_um2": 0.0,
+            }
+
+        return {
+            self.benchmark_name: {
+                workload_tag: {
+                    "NumberOfMLIROps": {"value": mlir_ops, "unit": "ops"},
+                    "Energy": {"value": base_metrics.get("energy_pj") or 0.0, "unit": "pJ"},
+                    "delayCycles": {"value": base_metrics.get("delay_cycles") or 0.0, "unit": "cycles"},
+                    "executionTime": {"value": base_metrics.get("execution_time_ns") or 0.0, "unit": "ns"},
+                    "PhysicalArea": {"value": base_metrics.get("physical_area_um2") or 0.0, "unit": "um^2"},
+                    "snapshots": list(self.pass_snapshots),
+                }
+            }
+        }
+
+    def _save_single_run_results_to_csv(self, benchmark_data):
+        csv_path = os.path.join(self.run_output_dir, "benchmark_results.csv")
+        with open(csv_path, 'w', newline='') as csvfile:
+            fieldnames = [
+                'Benchmark',
+                'WorkloadSize',
+                'NumberOfMLIROps (ops)',
+                'Energy (pJ)',
+                'delayCycles (cycles)',
+                'executionTime (ns)',
+                'PhysicalArea (um^2)',
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            for base, variants in benchmark_data.items():
+                for wl, m in variants.items():
+                    writer.writerow({
+                        'Benchmark': base,
+                        'WorkloadSize': wl,
+                        'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
+                        'Energy (pJ)': m['Energy']['value'],
+                        'delayCycles (cycles)': m['delayCycles']['value'],
+                        'executionTime (ns)': m['executionTime']['value'],
+                        'PhysicalArea (um^2)': m.get('PhysicalArea', {}).get('value', 0.0),
+                    })
+
+    def _save_single_run_results_to_json(self, benchmark_data):
+        json_path = os.path.join(self.run_output_dir, "benchmark_results.json")
+        with open(json_path, 'w') as jsonfile:
+            json.dump(benchmark_data, jsonfile, indent=2)
+
+    def _save_single_run_iteration_snapshots_to_csv(self):
+        csv_path = os.path.join(self.run_output_dir, "benchmark_iteration_snapshots.csv")
+        with open(csv_path, 'w', newline='') as csvfile:
+            fieldnames = [
+                'Benchmark',
+                'WorkloadSize',
+                'Iteration',
+                'Phase',
+                'EDP (nJ*ns)',
+                'Energy (pJ)',
+                'delayCycles (cycles)',
+                'executionTime (ns)',
+                'clkPeriod (ns)',
+                'PhysicalArea (um^2)',
+            ]
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+
+            workload_tag = self._get_workload_tag()
+            for snap in self.pass_snapshots:
+                writer.writerow({
+                    'Benchmark': self.benchmark_name,
+                    'WorkloadSize': workload_tag,
+                    'Iteration': '' if snap.get('iteration') is None else snap.get('iteration'),
+                    'Phase': snap.get('phase', ''),
+                    'EDP (nJ*ns)': '' if snap.get('edp') is None else snap.get('edp'),
+                    'Energy (pJ)': '' if snap.get('energy_pj') is None else snap.get('energy_pj'),
+                    'delayCycles (cycles)': '' if snap.get('delay_cycles') is None else snap.get('delay_cycles'),
+                    'executionTime (ns)': '' if snap.get('execution_time_ns') is None else snap.get('execution_time_ns'),
+                    'clkPeriod (ns)': '' if snap.get('clk_period_ns') is None else snap.get('clk_period_ns'),
+                    'PhysicalArea (um^2)': '' if snap.get('physical_area_um2') is None else snap.get('physical_area_um2'),
+                })
+
+    def _save_single_run_iteration_snapshots_to_json(self):
+        json_path = os.path.join(self.run_output_dir, "benchmark_iteration_snapshots.json")
+        workload_tag = self._get_workload_tag()
+        snapshots = []
+        for snap in self.pass_snapshots:
+            snapshots.append(
+                {
+                    'Benchmark': self.benchmark_name,
+                    'WorkloadSize': workload_tag,
+                    'Iteration': snap.get('iteration'),
+                    'Phase': snap.get('phase'),
+                    'EDP (nJ*ns)': snap.get('edp'),
+                    'Energy (pJ)': snap.get('energy_pj'),
+                    'delayCycles (cycles)': snap.get('delay_cycles'),
+                    'executionTime (ns)': snap.get('execution_time_ns'),
+                    'clkPeriod (ns)': snap.get('clk_period_ns'),
+                    'PhysicalArea (um^2)': snap.get('physical_area_um2'),
+                }
+            )
+        with open(json_path, 'w') as jsonfile:
+            json.dump(snapshots, jsonfile, indent=2)
+
+    def _persist_single_run_outputs(self):
+        os.makedirs(self.run_output_dir, exist_ok=True)
+        benchmark_data = self._build_single_run_benchmark_data()
+        self._save_single_run_results_to_csv(benchmark_data)
+        self._save_single_run_results_to_json(benchmark_data)
+        self._save_single_run_iteration_snapshots_to_csv()
+        self._save_single_run_iteration_snapshots_to_json()
 
 
     def run_catapult(self):
@@ -988,6 +1244,8 @@ class Codesign:
             )
 
         self.hw.display_objective("after forward pass")
+        self._capture_pass_snapshot("forward", iteration_count)
+        self._persist_single_run_outputs()
 
         self.checkpoint_controller.check_end_checkpoint("pd", self.iteration_count)
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
@@ -1156,6 +1414,8 @@ class Codesign:
         self.write_back_params()
 
         self.hw.display_objective("after inverse pass")
+        self._capture_pass_snapshot("inverse", self.iteration_count)
+        self._persist_single_run_outputs()
 
         self.obj_over_iterations.append(sim_util.xreplace_safe(self.hw.obj, self.hw.circuit_model.tech_model.base_params.tech_values))
         self.lag_factor_over_iterations.append(self.inverse_pass_lag_factor)
