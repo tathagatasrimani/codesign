@@ -555,7 +555,7 @@ def print_results_table(benchmark_data: dict):
         print("No benchmark data to display")
         return
 
-    headers = ["Benchmark", "Workload_size", "MLIR Ops", "Energy (pJ)", "Delay Cycles", "Exec Time (ns)", "Phys Area (um^2)"]
+    headers = ["Benchmark", "WorkloadSize", "MLIR Ops", "Energy (pJ)", "Delay Cycles", "Exec Time (ns)", "Phys Area (um^2)"]
     col_widths = [len(h) for h in headers]
 
     rows = []
@@ -616,7 +616,7 @@ def print_results_table(benchmark_data: dict):
 
 def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = False):
     """
-    Save nested results with explicit Workload_size column.
+    Save nested results with explicit WorkloadSize column.
     """
     if not benchmark_data:
         if debug:
@@ -632,7 +632,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
     with open(csv_path, 'w', newline='') as csvfile:
         fieldnames = [
             'Benchmark',
-            'Workload_size',
+            'WorkloadSize',
             'NumberOfMLIROps (ops)',
             'Energy (pJ)',
             'delayCycles (cycles)',
@@ -647,7 +647,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
                 for wl, m in variants.items():
                     writer.writerow({
                         'Benchmark': base,
-                        'Workload_size': wl,
+                        'WorkloadSize': wl,
                         'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
                         'Energy (pJ)': m['Energy']['value'],
                         'delayCycles (cycles)': m['delayCycles']['value'],
@@ -658,7 +658,7 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
                 m = variants
                 writer.writerow({
                     'Benchmark': base,
-                    'Workload_size': '',
+                    'WorkloadSize': '',
                     'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
                     'Energy (pJ)': m['Energy']['value'],
                     'delayCycles (cycles)': m['delayCycles']['value'],
@@ -702,7 +702,7 @@ def save_iteration_snapshots_to_csv(benchmark_data: dict, output_dir: str, debug
     with open(csv_path, 'w', newline='') as csvfile:
         fieldnames = [
             'Benchmark',
-            'Workload_size',
+            'WorkloadSize',
             'Iteration',
             'Phase',
             'EDP (nJ*ns)',
@@ -722,7 +722,7 @@ def save_iteration_snapshots_to_csv(benchmark_data: dict, output_dir: str, debug
                 for snap in metrics.get('snapshots', []):
                     writer.writerow({
                         'Benchmark': base,
-                        'Workload_size': wl,
+                        'WorkloadSize': wl,
                         'Iteration': '' if snap.get('iteration') is None else snap.get('iteration'),
                         'Phase': snap.get('phase', ''),
                         'EDP (nJ*ns)': '' if snap.get('edp') is None else snap.get('edp'),
@@ -755,7 +755,7 @@ def save_iteration_snapshots_to_json(benchmark_data: dict, output_dir: str, debu
                 snapshots.append(
                     {
                         'Benchmark': base,
-                        'Workload_size': wl,
+                        'WorkloadSize': wl,
                         'Iteration': snap.get('iteration'),
                         'Phase': snap.get('phase'),
                         'EDP (nJ*ns)': snap.get('edp'),
