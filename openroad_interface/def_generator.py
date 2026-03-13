@@ -749,4 +749,4 @@ class DefGenerator:
         log_info(f"DEF file generation complete.")
         log_info(f"Estimated total macro area: {area_estimate_sq_microns:.2f} square microns")
 
-        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict, node_to_component_num
+        return graph, net_out_dict, node_output, lef_data_dict, node_to_num, area_estimate_sq_microns, macro_dict, node_to_component_num, macro_size_dict, node_to_macro

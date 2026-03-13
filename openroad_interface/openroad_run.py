@@ -21,6 +21,7 @@ from . import detailed as det
 from . import scale_lef_files as scale_lef
 from openroad_interface.lib_cell_generator import LibCellGenerator
 from . import macro_maker as make_macros
+from .hierarchical_placer.hierarchical_placer import HierarchicalPlacer
 from src import sim_util
 ## This is the area between the die area and the core area.
 DIE_CORE_BUFFER_SIZE = 50
@@ -174,14 +175,14 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, _, _ = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/TARGET_UTILIZATION)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, macro_size_dict, node_to_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
 
         lib_cell_generator = LibCellGenerator()
         lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
@@ -189,6 +190,38 @@ class OpenRoadRun:
         self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
 
         self.update_top_level_flag()
+
+        # ── Hierarchical macro placement ──
+        # Build the FU-level graph for placement (old_graph with mux nodes added during DEF gen)
+        # node_to_macro has: node_name -> [macro_lef_name, {input: [...], output: [...], ...}]
+        node_to_macro_name = {node: info[0] for node, info in node_to_macro.items()}
+
+        # Compute core area from the TCL file
+        core_area = self._read_core_area_from_tcl()
+
+        if core_area is not None and len(macro_size_dict) > 0:
+            # Build the FU-level subgraph (only nodes that have LEF macros)
+            fu_nodes = set(node_to_macro_name.keys())
+            fu_graph = graph.subgraph(
+                [n for n in graph.nodes() if n in fu_nodes]
+            ).copy()
+
+            placer = HierarchicalPlacer(
+                graph=fu_graph,
+                macro_size_dict=macro_size_dict,
+                node_to_macro_name=node_to_macro_name,
+                core_area=core_area,
+            )
+            positions = placer.place()
+
+            if positions:
+                placement_tcl_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
+                placer.write_placement_tcl(positions, self.node_to_component_num, placement_tcl_path)
+                logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
+            else:
+                logger.info("Hierarchical placer returned no positions; falling back to rtl_macro_placer.")
+        else:
+            logger.info("Skipping hierarchical placement (no core area or no macros).")
 
         final_area = area_estimate
 
@@ -208,6 +241,29 @@ class OpenRoadRun:
                 logger.info(f"Updated at_top_level_of_hierarchy to {'1' if self.top_level else '0'}")
         with open(self.directory + "/tcl/codesign_files/codesign.vars", "w") as file:
             file.writelines(vars_data)
+
+    def _read_core_area_from_tcl(self):
+        """
+        Read the core_area from codesign_top.tcl and return (x_min, y_min, x_max, y_max) in microns.
+        Returns None if parsing fails.
+        """
+        tcl_path = os.path.join(self.directory, "tcl", "codesign_top.tcl")
+        try:
+            with open(tcl_path, "r") as f:
+                for line in f:
+                    if "set core_area" in line:
+                        import re as _re
+                        match = _re.search(r'\{([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\}', line)
+                        if match:
+                            return (
+                                float(match.group(1)),
+                                float(match.group(2)),
+                                float(match.group(3)),
+                                float(match.group(4)),
+                            )
+        except Exception as e:
+            logger.warning(f"Failed to read core area from TCL: {e}")
+        return None
     
     def update_clock_period(self, sdc_file: str):
         """
@@ -268,7 +324,7 @@ class OpenRoadRun:
         logger.info(f"Generating DEF file for {self.codesign_root_dir}/{self.tmp_dir}/{self.subdirectory}")
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
 
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num = df.run_def_generator(
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num, macro_size_dict, node_to_macro = df.run_def_generator(
             test_file, graph
         )
 
@@ -280,7 +336,7 @@ class OpenRoadRun:
 
         self.scale_rc_values()
 
-        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict, dbu_area_estimate
+        return graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, df.max_dim_macro, macro_dict, dbu_area_estimate, macro_size_dict, node_to_macro
 
     def scale_rc_values(self):
         """
