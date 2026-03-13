@@ -216,7 +216,12 @@ class OpenRoadRun:
 
             if positions:
                 placement_tcl_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
-                placer.write_placement_tcl(positions, self.node_to_component_num, placement_tcl_path)
+                placer.write_placement_tcl(
+                    positions,
+                    self.node_to_component_num,
+                    placement_tcl_path,
+                    orientations=placer.get_orientations(),
+                )
                 logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
             else:
                 logger.info("Hierarchical placer returned no positions; falling back to rtl_macro_placer.")
