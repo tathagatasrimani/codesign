@@ -15,3 +15,6 @@
 [submodule "Stream-HLS"]
 	path = Stream-HLS
 	url = https://github.com/patrickmcewen/Stream-HLS.git
+[submodule "openroad_interface/hierarchical_placer"]
+	path = openroad_interface/hierarchical_placer
+	url = https://github.com/thedubbers9/Hierarchical_Placer_Openroad.git

@@ -5,6 +5,8 @@ benchmark_3mm_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/3mm/
+    checkpoint_start_step: schedule
 
 benchmark_2mm_sweep_test_N16:
   base_cfg: vitis_test
@@ -13,6 +15,8 @@ benchmark_2mm_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/2mm/
+    checkpoint_start_step: schedule
 
 benchmark_gemm_sweep_test_N16:
   base_cfg: vitis_test
@@ -21,14 +25,18 @@ benchmark_gemm_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/gemm/
+    checkpoint_start_step: schedule
 
-benchmark_doitgen_sweep_test_N16:
-  base_cfg: vitis_test
-  args:
-    benchmark: kernel_doitgen
-    stop_at_checkpoint: pd
-    tech_node: yarch-default
-    workload_size: 16
+# benchmark_doitgen_sweep_test_N16:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: kernel_doitgen
+#     stop_at_checkpoint: pd
+#     tech_node: yarch-default
+#     workload_size: 16
+#     checkpoint_load_dir: forwardpass_sweep_N16/doitgen/
+#     checkpoint_start_step: schedule
 
 benchmark_bicg_sweep_test_N16:
   base_cfg: vitis_test
@@ -37,6 +45,8 @@ benchmark_bicg_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/bicg/
+    checkpoint_start_step: schedule
 
 benchmark_mvt_sweep_test_N16:
   base_cfg: vitis_test
@@ -45,6 +55,8 @@ benchmark_mvt_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/mvt/
+    checkpoint_start_step: schedule
 
 ## TODO: Add gemver
 
@@ -57,5 +69,7 @@ benchmark_atax_sweep_test_N16:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 16
+    checkpoint_load_dir: forwardpass_sweep_N16/atax/
+    checkpoint_start_step: schedule
 
 # TODO: Add trmm

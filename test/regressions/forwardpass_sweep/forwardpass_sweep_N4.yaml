@@ -5,6 +5,8 @@ benchmark_3mm_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/3mm/
+    checkpoint_start_step: schedule
 
 benchmark_2mm_sweep_test_N4:
   base_cfg: vitis_test
@@ -13,6 +15,8 @@ benchmark_2mm_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/2mm/
+    checkpoint_start_step: schedule
 
 benchmark_gemm_sweep_test_N4:
   base_cfg: vitis_test
@@ -21,6 +25,8 @@ benchmark_gemm_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/gemm/
+    checkpoint_start_step: schedule
 
 benchmark_doitgen_sweep_test_N4:
   base_cfg: vitis_test
@@ -29,6 +35,8 @@ benchmark_doitgen_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/doitgen/
+    checkpoint_start_step: schedule
 
 benchmark_bicg_sweep_test_N4:
   base_cfg: vitis_test
@@ -37,6 +45,8 @@ benchmark_bicg_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/bicg/
+    checkpoint_start_step: schedule
 
 benchmark_mvt_sweep_test_N4:
   base_cfg: vitis_test
@@ -45,22 +55,28 @@ benchmark_mvt_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/mvt/
+    checkpoint_start_step: schedule
 
-benchmark_gemm_sweep_test_N4:
-  base_cfg: vitis_test
-  args:
-    benchmark: gemmv
-    stop_at_checkpoint: pd
-    tech_node: yarch-default
-    workload_size: 4
+# benchmark_gemmv_sweep_test_N4:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: gemmv
+#     stop_at_checkpoint: pd
+#     tech_node: yarch-default
+#     workload_size: 4
+#     checkpoint_load_dir: forwardpass_sweep_N4/gemmv/
+#     checkpoint_start_step: schedule
 
-benchmark_gemm_sweep_test_N4:
-  base_cfg: vitis_test
-  args:
-    benchmark: gesummv
-    stop_at_checkpoint: pd
-    tech_node: yarch-default
-    workload_size: 4
+# benchmark_gesummv_sweep_test_N4:
+#   base_cfg: vitis_test
+#   args:
+#     benchmark: gesummv
+#     stop_at_checkpoint: pd
+#     tech_node: yarch-default
+#     workload_size: 4
+#     checkpoint_load_dir: forwardpass_sweep_N4/gesummv/
+#     checkpoint_start_step: schedule
 
 benchmark_atax_sweep_test_N4:
   base_cfg: vitis_test
@@ -69,5 +85,7 @@ benchmark_atax_sweep_test_N4:
     stop_at_checkpoint: pd
     tech_node: yarch-default
     workload_size: 4
+    checkpoint_load_dir: forwardpass_sweep_N4/atax/
+    checkpoint_start_step: schedule
 
 # TODO: Add trmm
