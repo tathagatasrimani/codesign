@@ -35,6 +35,15 @@ class CircuitModel:
         self.coeffs = coefficients.create_and_save_coefficients([7])
         self.set_coefficients()
 
+        self.MEM_FNS = [
+            "read",
+            "write",
+            "load",
+            "store",
+            "fifo",
+            "memory",
+        ]
+
         # UNITS: ns
         self.symbolic_latency_wc = {
             "And16": lambda: self._make_fu_lat_dict("And16"),

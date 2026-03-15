@@ -171,17 +171,17 @@ class LibCellGenerator:
         """
         cell_specs = []
         for macro_name, macro_data in macro_dict.items():
-            if "function" not in macro_data:
+            if "function" not in macro_data or macro_data["function"] in circuit_model.MEM_FNS:
                 continue
             log_info(f"macro_data: {macro_data}")
-            delay = sim_util.xreplace_safe(circuit_model.symbolic_latency_wc[macro_data["function"]](), circuit_model.tech_model.base_params.tech_values)
+            delay = sim_util.xreplace_safe(circuit_model.symbolic_latency_wc[macro_data["function"]]()[macro_data["rsc"]], circuit_model.tech_model.base_params.tech_values)
             if macro_data["function"] in circuit_model.symbolic_latency_wc and delay != 0:
                 cell_specs.append({
                     "cell_name": macro_name,
                     "input_pins": macro_data["input"],
                     "output_pins": macro_data["output"],
                     "delay": delay,
-                    "leakage": sim_util.xreplace_safe(circuit_model.symbolic_power_passive[macro_data["function"]](), circuit_model.tech_model.base_params.tech_values) * 1e-9, # convert from W to nW
+                    "leakage": sim_util.xreplace_safe(circuit_model.symbolic_power_passive[macro_data["function"]]()[macro_data["rsc"]], circuit_model.tech_model.base_params.tech_values) * 1e-9, # convert from W to nW
                     "area": macro_data["area"]
                 })
             else:

@@ -375,6 +375,7 @@ class DefGenerator:
         for node in old_nodes:
             macro = self.find_macro(graph.nodes[node])
             macro_dict[macro]["function"] = graph.nodes[node]["function"]
+            macro_dict[macro]["rsc"] = graph.nodes[node]["name"]
             node_to_macro[node] = [macro, copy.deepcopy(macro_dict[macro])]
             log_info(f"node to macro [{node}]: {node_to_macro[node]}")
             out_edge = self.edge_gen("out", old_nodes, graph)
