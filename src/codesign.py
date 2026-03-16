@@ -70,30 +70,51 @@ class Codesign:
         self.benchmark_name = self.cfg["args"]["benchmark"]
         self.obj_fn = self.cfg["args"]["obj"]
         self.tmp_dir = self.get_tmp_dir()
+        # All runtime state (logs, results, benchmark dirs) lives in this one tmp directory
+        self.save_dir = os.path.join(self.codesign_root_dir, self.tmp_dir)
+        os.makedirs(self.save_dir, exist_ok=True)
         print(f"tmp_dir: {self.tmp_dir}")
         self.benchmark_dir = f"{self.tmp_dir}/benchmark"
         self.benchmark_setup_dir = f"{self.tmp_dir}/benchmark_setup"
-        tmp_dir_suffix = self.tmp_dir.split("/")[-1]
-        self.save_dir = os.path.join(
-            self.cfg["args"]["savedir"], datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_" + tmp_dir_suffix
-        )
         self.hls_tcl_script = "tcl_script.tcl" if self.cfg["args"]["arch_opt_pipeline"] == "scalehls" else "hls.tcl"
 
-        if not os.path.exists(self.save_dir):
-            os.makedirs(self.save_dir)
-        else:  # clear the directory
-            files = os.listdir(self.save_dir)
-            for file in files:
-                os.remove(f"{self.save_dir}/{file}")
-        with open(f"{self.save_dir}/codesign.log", "a") as f:
+        # Single log file in tmp: receives all logging and terminal output
+        self.log_file = os.path.join(self.save_dir, "codesign.log")
+        with open(self.log_file, "w") as f:
             f.write("Codesign Log\n")
             f.write(f"Benchmark: {self.benchmark}\n")
             f.write(f"Tmp dir: {self.tmp_dir}\n")
 
-        logging.basicConfig(filename=f"{self.save_dir}/codesign.log", level=logging.INFO)
+        file_handler = logging.FileHandler(self.log_file, mode='a')
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_handler.setFormatter(logging.Formatter('%(levelname)s: %(message)s'))
+        logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
         logger.info(f"args: {self.cfg['args']}")
 
-        self.block_vectors_save_dir = f"{self.save_dir}/block_vectors"
+        # Tee stdout so everything printed to terminal is also written to the log file
+        class TeeOutput:
+            def __init__(self, original_stdout, log_path):
+                self.original_stdout = original_stdout
+                self.log_path = log_path
+            def write(self, text):
+                self.original_stdout.write(text)
+                self.original_stdout.flush()
+                try:
+                    with open(self.log_path, 'a') as f:
+                        f.write(text)
+                except Exception:
+                    pass
+            def flush(self):
+                self.original_stdout.flush()
+            def __getattr__(self, name):
+                return getattr(self.original_stdout, name)
+        self.original_stdout = sys.stdout
+        sys.stdout = TeeOutput(sys.stdout, self.log_file)
+
+        self.block_vectors_save_dir = os.path.join(self.save_dir, "block_vectors")
         os.makedirs(self.block_vectors_save_dir, exist_ok=True)
 
         self.checkpoint_controller = checkpoint_controller.CheckpointController(self.cfg, self.codesign_root_dir, self.tmp_dir)
@@ -206,8 +227,9 @@ class Codesign:
         if tmp_dir_arg:
             tmp_base_dir = tmp_dir_arg
 
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
         while True:
-            tmp_dir = f"{tmp_base_dir}/tmp_{self.benchmark_name}_{self.obj_fn}_{idx}"
+            tmp_dir = f"{tmp_base_dir}/tmp_{date_str}_{self.benchmark_name}_{self.obj_fn}_{idx}"
             tmp_dir_full = os.path.join(self.codesign_root_dir, tmp_dir)
             if not os.path.exists(tmp_dir_full):
                 os.makedirs(tmp_dir_full)
@@ -1235,6 +1257,8 @@ class Codesign:
 
     def cleanup(self):
         self.restore_dat()
+        if hasattr(self, 'original_stdout'):
+            sys.stdout = self.original_stdout
 
     def end_of_run_plots(self, obj_over_iterations, lag_factor_over_iterations, params_over_iterations, wire_lengths_over_iterations, wire_delays_over_iterations, device_delays_over_iterations, sensitivities_over_iterations, constraint_slack_over_iterations, visualize_block_vectors=False):
         if not hasattr(self.hw, "obj_sub_plot_names"):
@@ -1318,12 +1342,13 @@ def main(args):
     finally:
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
         # dump latest tech params to tmp dir for replayability
-        codesign_module.write_back_params(f"{codesign_module.tmp_dir}/tech_params_latest.yaml")
-        codesign_module.save_last_dsp_count(f"{codesign_module.tmp_dir}/last_dsp_count.yaml")
-        
+        codesign_module.write_back_params(os.path.join(codesign_module.save_dir, "tech_params_latest.yaml"))
+        codesign_module.save_last_dsp_count(os.path.join(codesign_module.save_dir, "last_dsp_count.yaml"))
         params_over_iterations_start_ind = 0 if not codesign_module.cfg["args"]["fixed_area_increase_pattern"] else 1
         codesign_module.end_of_run_plots(codesign_module.obj_over_iterations, codesign_module.lag_factor_over_iterations, codesign_module.params_over_iterations[params_over_iterations_start_ind:], codesign_module.wire_lengths_over_iterations, codesign_module.wire_delays_over_iterations, codesign_module.device_delays_over_iterations, codesign_module.sensitivities_over_iterations, codesign_module.constraint_slack_over_iterations, visualize_block_vectors=True)
         codesign_module.cleanup()
+        if hasattr(codesign_module, 'original_stdout'):
+            sys.stdout = codesign_module.original_stdout
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
