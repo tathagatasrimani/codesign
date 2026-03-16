@@ -185,9 +185,49 @@ set_routing_layers \
 # Now pin access uses the above
 pin_access
 
+set base_layer_adjustments $global_routing_layer_adjustments
+set route_attempt_scales {1.00 0.85 0.72 0.62}
+set route_success 0
+set route_error ""
 set route_guide [make_result_file ${design}_${platform}.route_guide]
-global_route -guide_file $route_guide \
-  -congestion_iterations 100 -verbose
+set route_guide_attempt ""
+
+set attempt_idx 0
+foreach scale $route_attempt_scales {
+  incr attempt_idx
+
+  foreach layer_adjustment $base_layer_adjustments {
+    lassign $layer_adjustment layer adjustment
+    set scaled_adjustment [expr {$adjustment * $scale}]
+    if {$scaled_adjustment < 0.15} {
+      set scaled_adjustment 0.15
+    }
+    set_global_routing_layer_adjustment $layer $scaled_adjustment
+  }
+
+  set route_guide_attempt [make_result_file ${design}_${platform}.route_guide.a${attempt_idx}]
+  puts "Global route attempt $attempt_idx with layer-adjustment scale $scale"
+
+  set rc [catch {
+    global_route -guide_file $route_guide_attempt \
+      -congestion_iterations 100 -verbose
+  } route_result]
+
+  if {$rc == 0} {
+    if {$route_guide_attempt ne $route_guide} {
+      file copy -force $route_guide_attempt $route_guide
+    }
+    set route_success 1
+    break
+  }
+
+  set route_error $route_result
+  puts "Global route attempt $attempt_idx failed: $route_error"
+}
+
+if {!$route_success} {
+  error "Global route failed after [llength $route_attempt_scales] attempts. Last error: $route_error"
+}
 
 set verilog_file [make_result_file ${design}_${platform}.v]
 write_verilog -remove_cells $filler_cells $verilog_file
