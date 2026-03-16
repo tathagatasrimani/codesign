@@ -1,0 +1,5 @@
+# Comprehensive multi-pipeline regression test suite
+# Includes StreamHLS passing tests, StreamHLS variations, and pipeline comparisons
+
+- ../forwardpass_stream_passing/vitis_stream_passing.yaml
+- ../pipeline_comparison/pipeline_comparison.yaml
