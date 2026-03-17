@@ -70,6 +70,10 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
+            # Add4, Add8, Add32
+            "Add4": lambda: self.make_sym_lat_wc(self.gamma["Add4"]),
+            "Add8": lambda: self.make_sym_lat_wc(self.gamma["Add8"]),
+            "Add32": lambda: self.make_sym_lat_wc(self.gamma["Add32"]),
         }
         self.DFF_DELAY = 10*self.tech_model.delay # ~10 FO4 delays
 
@@ -108,6 +112,10 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
+            # Add4, Add8, Add32
+            "Add4": lambda: self.make_sym_energy_act("Add4", self.alpha["Add4"]),
+            "Add8": lambda: self.make_sym_energy_act("Add8", self.alpha["Add8"]),
+            "Add32": lambda: self.make_sym_energy_act("Add32", self.alpha["Add32"]),
         }
         self.DFF_ENERGY = 20*self.tech_model.E_act_inv # TODO: get actual value
 
@@ -145,6 +153,10 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
+            # Add4, Add8, Add32
+            "Add4": lambda: self.make_sym_power_pass("Add4", self.beta["Add4"]),
+            "Add8": lambda: self.make_sym_power_pass("Add8", self.beta["Add8"]),
+            "Add32": lambda: self.make_sym_power_pass("Add32", self.beta["Add32"]),
         }
         self.DFF_PASSIVE_POWER = 20*self.tech_model.P_pass_inv # TODO: get actual value
 
@@ -180,6 +192,10 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
+            # Add4, Add8, Add32
+            "Add4": lambda: self.make_sym_area(self.area_coeffs["Add4"]),
+            "Add8": lambda: self.make_sym_area(self.area_coeffs["Add8"]),
+            "Add32": lambda: self.make_sym_area(self.area_coeffs["Add32"]),
         }
 
         # memories output from forward pass

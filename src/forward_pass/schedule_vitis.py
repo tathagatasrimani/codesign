@@ -129,6 +129,7 @@ def get_rsc_mapping(netlist_file):
         name = d.get('name')
         bind = d.get('bind', {})
         opset = bind.get('opset')
+        
         ## remove the slash and everything after it from the opset
         if not opset:
             #log_info(f"opset is None for {n},{d}")

@@ -350,6 +350,7 @@ def get_module_map():
     module_map = {
         # from HLS IR
         #"add": "Add16",
+        #"fadd": "Fpadd16",
         "fadd": "Fpadd16",
         "dadd": "Fpadd16",
         #"sub": "Sub16",
@@ -366,6 +367,10 @@ def get_module_map():
         "call": "Call",
 
         # from MLIR (blackboxed arith ops)
+        "add4": "Add4",
+        "add8": "Add8",
+        "add16": "Add16",
+        "add32": "Add32",
         "addf": "Fpadd16",
         "subf": "Fpsub16",
         "mulf": "Fpmul16",
@@ -384,11 +389,52 @@ def map_operator_types(full_netlist):
     Map the operator types in the netlist to standardized function names using module_map.
     """
     module_map = get_module_map()
+    bw_module_map = {
+        # from HLS IR
+        # TODO: Temp mapping for testing purposes of floats to variable bw adds - REMOVE BEFORE FINAL
+        #"add": "Add16",
+        #"fadd": "Fpadd16",
+        "fadd": [{"name" : "Add4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "Add8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "Add16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "Add32", "in_bw" : 64, "out_bw" : 32}]}
     for node in full_netlist:
         raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
+        pins = full_netlist.nodes[node].get('pins', {})
+        input_bw = 0
+        output_bw = 0
+        for pin in pins:
+            if pin.get('dir') == '0':
+                input_bw += pin.get('bitwidth', 0)
+            elif pin.get('dir') == '1':
+                output_bw += pin.get('bitwidth', 0)
         if raw_fn is None:
             raw_fn = "N/A"
-        full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+        
+        
+        # Bitwidth variation
+        if raw_fn in module_map:
+            raw_fn_val = module_map[raw_fn]
+            if raw_fn in bw_module_map:
+                raw_fn_val = bw_module_map[raw_fn]
+                selected_fn = raw_fn
+                selected_in_bw = 1000 #arbitrary large bitwidth
+                selected_out_bw = 1000
+
+                # find smallest bitwdith function that still meets requirements
+                for fn in raw_fn_val:
+                    if (fn["in_bw"] >= input_bw and fn["out_bw"] >= output_bw):
+                        if (fn["in_bw"] < selected_in_bw) or (fn["out_bw"] < selected_out_bw):
+                            selected_fn = fn["name"]
+                            selected_in_bw = fn["in_bw"]
+                            selected_out_bw = fn["out_bw"]
+
+                full_netlist.nodes[node]['function'] = selected_fn
+
+            else:
+                full_netlist.nodes[node]['function'] = raw_fn_val
+        else:
+            full_netlist.nodes[node]['function'] = raw_fn
     return full_netlist
 
 def get_latest_log_dir():
