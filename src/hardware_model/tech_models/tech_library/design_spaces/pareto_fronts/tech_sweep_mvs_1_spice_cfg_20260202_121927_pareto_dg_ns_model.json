@@ -1,0 +1,122 @@
+{
+  "type": "parametric",
+  "param_names": [
+    "L",
+    "V_dd",
+    "V_th",
+    "W",
+    "tox"
+  ],
+  "output_metrics": [
+    "Edynamic",
+    "MUL",
+    "Pstatic",
+    "area",
+    "delay"
+  ],
+  "input_metrics": [
+    "L",
+    "V_dd",
+    "V_th",
+    "W",
+    "tox"
+  ],
+  "n_params": 5,
+  "constraints": {
+    "Edynamic": {
+      "output": "Edynamic",
+      "type": "monomial",
+      "coefficient": 80.3433401382441,
+      "exponents": {
+        "L": 0.617878135066635,
+        "V_dd": 1.3034785882954543,
+        "V_th": 0.28305075270133456,
+        "W": 0.617878135066634,
+        "tox": -0.11275278534714184
+      },
+      "formula": "Edynamic = 8.034e+01 * L^0.618 * V_dd^1.303 * V_th^0.283 * W^0.618 * tox^-0.113",
+      "r_squared": 0.8427111085258246
+    },
+    "MUL": {
+      "output": "MUL",
+      "type": "monomial",
+      "coefficient": 0.1657311611286601,
+      "exponents": {
+        "L": -0.054496912088864466,
+        "V_dd": 0.12015723318659008,
+        "V_th": 0.2907157726433119,
+        "W": -0.05449691208886433,
+        "tox": -0.014345021175479485
+      },
+      "formula": "MUL = 1.657e-01 * L^-0.054 * V_dd^0.120 * V_th^0.291 * W^-0.054 * tox^-0.014",
+      "r_squared": 0.1277261242404789
+    },
+    "Pstatic": {
+      "output": "Pstatic",
+      "type": "monomial",
+      "coefficient": 3.0146700887917977e-83,
+      "exponents": {
+        "L": -6.052471839054361,
+        "V_dd": 0.0915407746261776,
+        "V_th": -14.34969944079681,
+        "W": -6.0524718390543555,
+        "tox": 3.135265498712843
+      },
+      "formula": "Pstatic = 3.015e-83 * L^-6.052 * V_dd^0.092 * V_th^-14.350 * W^-6.052 * tox^3.135",
+      "r_squared": 0.754624985353802
+    },
+    "area": {
+      "output": "area",
+      "type": "monomial",
+      "coefficient": 2.2035725273592206e-05,
+      "exponents": {
+        "L": 0.6440736253343428,
+        "V_dd": 0.014743305571232712,
+        "V_th": -0.11280947990969413,
+        "W": 0.6440736253343418,
+        "tox": -0.0014808686845123042
+      },
+      "formula": "area = 2.204e-05 * L^0.644 * V_dd^0.015 * V_th^-0.113 * W^0.644 * tox^-0.001",
+      "r_squared": 0.8738098571229178
+    },
+    "delay": {
+      "output": "delay",
+      "type": "monomial",
+      "coefficient": 2.8025578055235975e+27,
+      "exponents": {
+        "L": 1.7572513528317235,
+        "V_dd": -3.2185583755548715,
+        "V_th": 6.579774168760411,
+        "W": 1.7572513528317237,
+        "tox": 0.021558396223073095
+      },
+      "formula": "delay = 2.803e+27 * L^1.757 * V_dd^-3.219 * V_th^6.580 * W^1.757 * tox^0.022",
+      "r_squared": 0.5605605151133046
+    }
+  },
+  "param_bounds": {
+    "L": {
+      "min": 5e-09,
+      "max": 5e-08
+    },
+    "V_dd": {
+      "min": 0.1,
+      "max": 1.2
+    },
+    "V_th": {
+      "min": 0.291,
+      "max": 0.9
+    },
+    "W": {
+      "min": 5e-09,
+      "max": 5e-08
+    },
+    "tox": {
+      "min": 1e-09,
+      "max": 9.46e-09
+    }
+  },
+  "usage": {
+    "description": "Parametric Pareto surface model with monomial fits. Use in CVXPY with DGP."
+  }
+}
