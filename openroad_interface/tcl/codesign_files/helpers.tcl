@@ -11,7 +11,8 @@ proc make_result_file { filename } {
   set root [file rootname $filename]
   set ext [file extension $filename]
   set filename "$root-tcl$ext"
-  return [file join $result_dir $filename]
+  # Use normalized absolute path so Qt/OpenROAD save_image can write reliably (e.g. headless)
+  return [file normalize [file join $result_dir $filename]]
 }
 
 # puts [exec cat $file] without forking.

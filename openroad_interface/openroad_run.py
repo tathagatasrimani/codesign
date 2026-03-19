@@ -425,6 +425,11 @@ class OpenRoadRun:
         import os
         
         logger.info("Starting OpenROAD run.")
+        # Ensure results directory exists so save_image (and other outputs) can write
+        results_dir = self.directory + "/results"
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+            logger.info(f"Created results directory: {results_dir}")
         old_dir = os.getcwd()
         os.chdir(self.directory + "/tcl")
         logger.info(f"Changed directory to {self.directory + '/tcl'}")
@@ -437,71 +442,134 @@ class OpenRoadRun:
         if isinstance(args_dict, dict):
             preinstalled = args_dict.get("preinstalled_openroad_path")
 
-        # Check if xvfb-run is available
+        # Check if xvfb-run is available (preferred so save_image can create the design snapshot)
         xvfb_available = shutil.which("xvfb-run") is not None
-        
+        # Project .Xauthority for virtual display auth (e.g. when using Xvfb)
+        codesign_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        xauth_path = os.path.join(codesign_root, ".Xauthority")
+        use_xauth = os.path.isfile(xauth_path)
+
         if preinstalled:
             openroad_cmd = preinstalled
         else:
             openroad_bin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "OpenROAD", "build", "src", "openroad")
             openroad_cmd = openroad_bin
-        
-        # Set up environment for Qt/OpenGL software rendering
+
         env = os.environ.copy()
-        
-        # Qt platform configuration - use offscreen platform for headless rendering
-        # This avoids X11/XCB issues entirely and works natively without Xvfb
-        env['QT_QPA_PLATFORM'] = 'offscreen'
-        
-        # Ensure OpenGL software rendering is available for offscreen platform
-        env['LIBGL_ALWAYS_SOFTWARE'] = '1'
-        env['GALLIUM_DRIVER'] = 'llvmpipe'
-        env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
-        env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
-        
-        # Ensure Qt can find image format plugins (PNG support)
-        # Try common system locations for Qt5 plugins
+
+        # Optional: enable verbose Qt plugin loading to debug missing imageformats/PNG.
+        # Set `CODESIGN_QT_DEBUG_PLUGINS=1` in your environment (or in the calling wrapper)
+        # to turn this on without editing code.
+        if env.get("CODESIGN_QT_DEBUG_PLUGINS", "").lower() in ("1", "true", "yes", "y"):
+            env["QT_DEBUG_PLUGINS"] = "1"
+            logger.info("Enabled QT_DEBUG_PLUGINS=1 (via CODESIGN_QT_DEBUG_PLUGINS)")
+
+        # Ensure Qt can find plugins including imageformats (PNG for save_image)
+        # Prefer system Qt plugin dirs first so imageformats (e.g. libqpng) is found
         possible_plugin_paths = [
             "/usr/lib64/qt5/plugins",
-            "/usr/lib/qt5/plugins", 
+            "/usr/lib/qt5/plugins",
             "/usr/lib/x86_64-linux-gnu/qt5/plugins",
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), 
+            os.path.join(os.path.dirname(os.path.abspath(__file__)),
                         "OpenROAD", "build", "src", "plugins")
         ]
-        for qt_plugin_path in possible_plugin_paths:
-            if os.path.exists(qt_plugin_path):
-                env['QT_PLUGIN_PATH'] = qt_plugin_path
-                logger.info(f"Set QT_PLUGIN_PATH to {qt_plugin_path}")
-                break
-        
-        # Ensure imageformats directory is accessible for PNG support
-        # Qt5 should have built-in PNG support, but plugins help
-        imageformat_path = "/usr/lib64/qt5/plugins/imageformats"
-        if os.path.exists(imageformat_path):
-            # Set QT_PLUGIN_PATH to include the parent plugins directory
-            # Qt will automatically look in plugins/imageformats subdirectory
-            if 'QT_PLUGIN_PATH' not in env:
-                env['QT_PLUGIN_PATH'] = "/usr/lib64/qt5/plugins"
-                logger.info("Set QT_PLUGIN_PATH to include imageformats")
-        
-        # Also try setting QT_QPA_PLATFORM_PLUGIN_PATH if needed
-        # This helps Qt find platform-specific plugins
+        existing_plugin_paths = [p for p in possible_plugin_paths if os.path.exists(p)]
+        if existing_plugin_paths:
+            # Use all existing paths so both system imageformats and OpenROAD plugins are found
+            env['QT_PLUGIN_PATH'] = os.pathsep.join(existing_plugin_paths)
+            logger.info("Set QT_PLUGIN_PATH to %s", env['QT_PLUGIN_PATH'])
         if 'QT_QPA_PLATFORM_PLUGIN_PATH' not in env:
             platform_plugin_path = "/usr/lib64/qt5/plugins/platforms"
             if os.path.exists(platform_plugin_path):
                 env['QT_QPA_PLATFORM_PLUGIN_PATH'] = platform_plugin_path
-        
-        # Build the command - with offscreen platform, we don't need Xvfb
-        # Offscreen platform works natively without X server
-        cmd = f"{openroad_cmd} codesign_top.tcl"
-        logger.info("Using Qt offscreen platform for headless image rendering (no Xvfb needed)")
+
+        if xvfb_available:
+            # Use virtual X display so Qt can render and save_image can write the PNG.
+            # Do not set XAUTHORITY here; xvfb-run creates its own auth file for the new server.
+            # Let xvfb-run set DISPLAY; do not set QT_QPA_PLATFORM so Qt uses the virtual X
+            if env.get("QT_DEBUG_PLUGINS") == "1":
+                # When Qt debug plugin loading is enabled, we have seen XCB/Xvfb-related crashes.
+                # For debugging plugin loading itself, force offscreen and avoid XCB.
+                env['DISPLAY'] = ''
+                if 'XAUTHORITY' in env:
+                    del env['XAUTHORITY']
+                env['QT_QPA_PLATFORM'] = 'offscreen'
+                # Avoid Qt session management error under Xvfb (ICE auth not set up for virtual display)
+                for var in ('SESSION_MANAGER', 'DBUS_SESSION_BUS_ADDRESS'):
+                    if var in env:
+                        del env[var]
+                # Software rendering for consistency in headless
+                env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                env['GALLIUM_DRIVER'] = 'llvmpipe'
+                env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
+                env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+                cmd = f"{openroad_cmd} codesign_top.tcl"
+                logger.info("QT_DEBUG_PLUGINS enabled; forcing Qt offscreen to avoid XCB crashes")
+            else:
+                if 'QT_QPA_PLATFORM' in env:
+                    del env['QT_QPA_PLATFORM']
+                # Avoid Qt session management error under Xvfb (ICE auth not set up for virtual display)
+                for var in ('SESSION_MANAGER', 'DBUS_SESSION_BUS_ADDRESS'):
+                    if var in env:
+                        del env[var]
+                # Software rendering for consistency in headless
+                env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                env['GALLIUM_DRIVER'] = 'llvmpipe'
+                env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
+                env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+                cmd = f"xvfb-run -a {openroad_cmd} codesign_top.tcl"
+                logger.info("Using Xvfb virtual display for headless run (save_image will create design snapshot)")
+        else:
+            # No xvfb-run: use existing DISPLAY + .Xauthority if present, else offscreen
+            if env.get('DISPLAY') and use_xauth:
+                env['XAUTHORITY'] = xauth_path
+                if 'QT_QPA_PLATFORM' in env:
+                    del env['QT_QPA_PLATFORM']
+                if 'SESSION_MANAGER' in env:
+                    del env['SESSION_MANAGER']
+                logger.info("Using existing DISPLAY with XAUTHORITY=%s for save_image", xauth_path)
+                cmd = f"{openroad_cmd} codesign_top.tcl"
+            else:
+                env['DISPLAY'] = ''
+                if 'XAUTHORITY' in env:
+                    del env['XAUTHORITY']
+                env['QT_QPA_PLATFORM'] = 'offscreen'
+                cmd = f"{openroad_cmd} codesign_top.tcl"
+                logger.info("Using Qt offscreen (no xvfb-run, no DISPLAY); save_image may warn if PNG write fails")
+            env['LIBGL_ALWAYS_SOFTWARE'] = '1'
+            env['GALLIUM_DRIVER'] = 'llvmpipe'
+            env['MESA_LOADER_DRIVER_OVERRIDE'] = 'llvmpipe'
+            env['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+
+        # Snapshot workaround: write to /tmp first then copy to results (avoids NFS/permission issues).
+        #
+        # IMPORTANT: some environments have Qt imageformats but no PNG plugin (libqpng.so),
+        # which makes QImage::save fail for *.png. We detect png plugin presence and
+        # fall back to JPEG when needed, while still copying/renaming into the expected
+        # `design_snapshot-tcl.png` filename for downstream consumers.
+        qt_imageformats_dirs = [
+            "/usr/lib64/qt5/plugins/imageformats",
+            "/usr/lib/qt5/plugins/imageformats",
+            "/usr/lib/x86_64-linux-gnu/qt5/plugins/imageformats",
+        ]
+        png_plugin_exists = any(
+            os.path.exists(os.path.join(d, "libqpng.so")) for d in qt_imageformats_dirs
+        )
+
+        snapshot_tmp_ext = "png" if png_plugin_exists else "jpg"
+        snapshot_tmp = f"/tmp/codesign_snapshot_{os.getpid()}.{snapshot_tmp_ext}"
+        env["CODESIGN_SNAPSHOT_PATH"] = snapshot_tmp
+
+        results_dir = os.path.join(self.directory, "results")
+        results_snapshot_png = os.path.join(results_dir, "design_snapshot-tcl.png")
+        results_snapshot_jpg = os.path.join(results_dir, "design_snapshot-tcl.jpg")
 
         # Redirect output to log file
         log_file = f"{self.directory}/codesign_pd.log"
         
         logger.info("Executing OpenROAD command: %s", cmd)
-        logger.info("Environment: LIBGL_ALWAYS_SOFTWARE=%s, QT_QPA_PLATFORM=%s", 
-                    env.get('LIBGL_ALWAYS_SOFTWARE'), env.get('QT_QPA_PLATFORM'))
+        logger.info("Environment: LIBGL_ALWAYS_SOFTWARE=%s, QT_QPA_PLATFORM=%s, XAUTHORITY=%s",
+                    env.get('LIBGL_ALWAYS_SOFTWARE'), env.get('QT_QPA_PLATFORM'), env.get('XAUTHORITY'))
         
         # Use subprocess to properly handle environment and output redirection
         with open(log_file, 'w') as log:
@@ -514,6 +582,57 @@ class OpenRoadRun:
                 stderr=subprocess.STDOUT
             )
         
+        # Copy snapshot from /tmp to results if it was written.
+        #
+        # Note: OpenROAD/Qt normalizes the output path via Qt's fixImagePath().
+        # If the extension we pass isn't recognized as a supported format,
+        # Qt may append ".png". For example, "/tmp/foo.jpg" might become
+        # "/tmp/foo.jpg.png". So check a couple candidate paths.
+        candidate_paths = [snapshot_tmp, snapshot_tmp + ".png", snapshot_tmp + ".PNG"]
+        found_path = None
+        for p in candidate_paths:
+            if os.path.isfile(p):
+                found_path = p
+                break
+
+        if found_path is not None:
+            try:
+                if found_path.lower().endswith(".png"):
+                    shutil.copy2(found_path, results_snapshot_png)
+                    logger.info(
+                        "Copied design snapshot from %s to %s",
+                        found_path,
+                        results_snapshot_png,
+                    )
+                else:
+                    shutil.copy2(found_path, results_snapshot_jpg)
+                    logger.info(
+                        "Copied design snapshot from %s to %s",
+                        found_path,
+                        results_snapshot_jpg,
+                    )
+                    # Compatibility: create a *.png filename pointing to the JPEG bytes.
+                    shutil.copy2(found_path, results_snapshot_png)
+                    logger.info(
+                        "Copied design snapshot (JPEG bytes) to %s",
+                        results_snapshot_png,
+                    )
+            except OSError as e:
+                logger.warning("Could not copy snapshot to results: %s", e)
+
+            try:
+                os.remove(found_path)
+            except OSError:
+                pass
+        else:
+            logger.warning(
+                "Snapshot file not written by OpenROAD/Qt. Checked: %s",
+                ", ".join(candidate_paths),
+            )
+
+        # (debug logging intentionally removed; snapshot presence is already
+        # visible via the existence checks/copy above.)
+
         print("done")
         logger.info("OpenROAD run completed.")
         os.chdir(old_dir)

@@ -237,6 +237,30 @@ report_wire_length -net * -file "../results/wire_length_global.txt" -global_rout
 set routed_def [make_result_file final_generated.def]
 write_def $routed_def
 
-save_image [make_result_file design_snapshot.png] -display_option {Tracks/Pref true} 
+# Use CODESIGN_SNAPSHOT_PATH if set (Python may use /tmp then copy to results)
+if { [info exists ::env(CODESIGN_SNAPSHOT_PATH)] } {
+  set snapshot_path $::env(CODESIGN_SNAPSHOT_PATH)
+} else {
+  set snapshot_path [make_result_file design_snapshot.png]
+}
+# In headless/offscreen runs, the layout widget's "visibleRegion()" can be empty,
+# leading to a zero-size QImage and a hard failure in `QImage::save()`.
+# Force a deterministic, non-empty render region using die_area/core_area.
+set save_area ""
+if { [info exists die_area] } {
+  set save_area $die_area
+} elseif { [info exists core_area] } {
+  set save_area $core_area
+}
+
+if { $save_area ne "" } {
+  # Force a deterministic pixel scale so the rendered QImage isn't zero-sized in headless/offscreen runs.
+  # -width is in pixels.
+  # Keep within OpenROAD/Qt internal max image size (kMaxImageSize=7200) to avoid clamping/illegal sizes.
+  set save_width_px 4000
+  save_image $snapshot_path -area $save_area -width $save_width_px -display_option {Tracks/Pref true}
+} else {
+  save_image $snapshot_path -display_option {Tracks/Pref true}
+}
 
 exit
