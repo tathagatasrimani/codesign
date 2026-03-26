@@ -6,6 +6,10 @@
 #set_debug_level MPL flipping 1
 #set_debug_level MPL boundary_push 1
 set_thread_count [expr [cpu_count] - 1]
+
+# Placement snapshot helper (macros, pins, flywires) — before global routing
+source [file join [file dirname [info script]] "codesign_placement_snapshot.tcl"]
+
 ################################################################
 # IO Placement (random)
 place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_layer
@@ -22,7 +26,7 @@ place_pins -random -hor_layers $io_placer_hor_layer -ver_layers $io_placer_ver_l
 set flow_dir [file dirname [info script]]
 set hier_placement_tcl [file join $flow_dir "hierarchical_placement.tcl"]
 
-if {[file exists $hier_placement_tcl]} {
+if {[file exists $hier_placement_tcl] && [file size $hier_placement_tcl] > 0} {
   puts "Using hierarchical macro placement"
   source $hier_placement_tcl
 } else {
@@ -171,6 +175,11 @@ utl::metric "DPL::design_area" [sta::format_area [rsz::design_area] 0]
 set dpl_db [make_result_file ${design}_${platform}_dpl.db]
 write_db $dpl_db
 
+# Image after placement (macros + I/O pin markers + flywires). Survives GRT failure.
+if { [llength [info procs codesign_write_placement_snapshot]] } {
+  codesign_write_placement_snapshot
+}
+
 set verilog_file [make_result_file ${design}_${platform}.v]
 write_verilog $verilog_file
 
@@ -226,7 +235,10 @@ foreach scale $route_attempt_scales {
 }
 
 if {!$route_success} {
-  error "Global route failed after [llength $route_attempt_scales] attempts. Last error: $route_error"
+  puts "Global route failed after [llength $route_attempt_scales] attempts. Last error: $route_error"
+  puts "Continuing without final verilog/def export; codesign_top.tcl will still run a layout snapshot."
+  set ::codesign_flow_ok 0
+  return
 }
 
 set verilog_file [make_result_file ${design}_${platform}.v]
@@ -237,30 +249,4 @@ report_wire_length -net * -file "../results/wire_length_global.txt" -global_rout
 set routed_def [make_result_file final_generated.def]
 write_def $routed_def
 
-# Use CODESIGN_SNAPSHOT_PATH if set (Python may use /tmp then copy to results)
-if { [info exists ::env(CODESIGN_SNAPSHOT_PATH)] } {
-  set snapshot_path $::env(CODESIGN_SNAPSHOT_PATH)
-} else {
-  set snapshot_path [make_result_file design_snapshot.png]
-}
-# In headless/offscreen runs, the layout widget's "visibleRegion()" can be empty,
-# leading to a zero-size QImage and a hard failure in `QImage::save()`.
-# Force a deterministic, non-empty render region using die_area/core_area.
-set save_area ""
-if { [info exists die_area] } {
-  set save_area $die_area
-} elseif { [info exists core_area] } {
-  set save_area $core_area
-}
-
-if { $save_area ne "" } {
-  # Force a deterministic pixel scale so the rendered QImage isn't zero-sized in headless/offscreen runs.
-  # -width is in pixels.
-  # Keep within OpenROAD/Qt internal max image size (kMaxImageSize=7200) to avoid clamping/illegal sizes.
-  set save_width_px 4000
-  save_image $snapshot_path -area $save_area -width $save_width_px -display_option {Tracks/Pref true}
-} else {
-  save_image $snapshot_path -display_option {Tracks/Pref true}
-}
-
-exit
+# Snapshot is handled by codesign_snapshot.tcl from codesign_top.tcl (always runs).

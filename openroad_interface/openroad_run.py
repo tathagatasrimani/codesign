@@ -208,17 +208,10 @@ class OpenRoadRun:
             ).copy()
 
             macro_count = len(fu_graph.nodes())
-            routability_retries = 4
-            if macro_count >= 64:
-                routability_retries = 7
-            elif macro_count >= 24:
-                routability_retries = 6
-            elif macro_count >= 12:
-                routability_retries = 5
 
             logger.info(
                 f"Hierarchical placer macros={macro_count}, "
-                f"routability_retries={routability_retries}"
+                f"core_area={core_area}"
             )
 
             placer = HierarchicalPlacer(
@@ -226,19 +219,25 @@ class OpenRoadRun:
                 macro_size_dict=macro_size_dict,
                 node_to_macro_name=node_to_macro_name,
                 core_area=core_area,
-                routability_retries=routability_retries,
             )
             positions = placer.place()
 
             if positions:
                 placement_tcl_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
-                placer.write_placement_tcl(
-                    positions,
-                    self.node_to_component_num,
-                    placement_tcl_path,
-                    orientations=placer.get_orientations(),
-                )
-                logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
+                # Only write TCL if we can map at least one placed node to a DEF component ID.
+                mapped_nodes = [n for n in positions.keys() if n in self.node_to_component_num]
+                if len(mapped_nodes) > 0:
+                    placer.write_placement_tcl(
+                        positions=positions,
+                        node_to_component_num=self.node_to_component_num,
+                        output_path=placement_tcl_path,
+                    )
+                    logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
+                else:
+                    logger.info(
+                        "Hierarchical placer returned positions but no node mapped to DEF component IDs; "
+                        "skipping hierarchical macro TCL write."
+                    )
             else:
                 logger.info("Hierarchical placer returned no positions; falling back to rtl_macro_placer.")
         else:

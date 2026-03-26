@@ -30,4 +30,21 @@ puts "Ports: [get_ports *]"
 set tech_obj [ord::get_db_tech]
 puts ">>> Manufacturing grid in OpenROAD: [$tech_obj getManufacturingGrid]"
 
-source "codesign_flow.tcl"
+# 1 = full flow completed without Tcl error / early abort from known failure paths
+set ::codesign_flow_ok 1
+
+if { [catch { source "codesign_flow.tcl" } err] } {
+  puts stderr "codesign_flow.tcl failed: $err"
+  set ::codesign_flow_ok 0
+}
+
+# Always attempt snapshot (placement / partial route / congestion cases).
+if { [catch { source "codesign_snapshot.tcl" } snap_err] } {
+  puts stderr "codesign_snapshot.tcl failed: $snap_err"
+}
+
+if { $::codesign_flow_ok } {
+  exit 0
+} else {
+  exit 1
+}
