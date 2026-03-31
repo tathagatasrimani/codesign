@@ -320,9 +320,9 @@ class Codesign:
             print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
-        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpadd16"] / self.clk_period)
-        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpmul16"] / self.clk_period)
-        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpdiv16"] / self.clk_period)
+        config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpadd32"] / self.clk_period)
+        config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpmul32"] / self.clk_period)
+        config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpdiv32"] / self.clk_period)
         config["100MHz"]["fcmp"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["GtE16"] / self.clk_period)
 
         config["max_iter_num"] = self.cfg["args"]["max_iter_num_scalehls"]
@@ -508,7 +508,7 @@ class Codesign:
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             return dsp, latency
 
-    def parse_vitis_data(self, save_dir):
+    def parse_vitis_data(self, save_dir, latency):
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -546,7 +546,7 @@ class Codesign:
             ## Merge the netlists recursivley through the module hierarchy to produce overall netlist
             logger.info("Recursivley merging vitis netlists")
             vitis_netlist_merger = MergeNetlistsVitis(self.cfg, self.codesign_root_dir, allowed_functions_netlist)
-            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function)
+            vitis_netlist_merger.merge_netlists_vitis(parse_results_dir, self.vitis_top_function, self.hw.circuit_model.circuit_values["latency"])
             logger.info("Vitis netlist parsing complete")
             logger.info(f"time to parse vitis netlist: {time.time()-start_time}")
         else:

@@ -15,3 +15,6 @@
 [submodule "Stream-HLS"]
 	path = Stream-HLS
 	url = https://github.com/patrickmcewen/Stream-HLS.git
+[submodule "functional_unit_tech_params"]
+	path = functional_unit_tech_params
+	url = https://github.com/thedubbers9/functional_unit_tech_params

@@ -869,6 +869,38 @@ class vitis_schedule_parser:
                 self.basic_blocks[basic_block_name].convert()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg()
                 self.basic_blocks[basic_block_name].convert_to_standard_dfg_with_wire_ops()
+
+                # dfs (simple paths) on graph to look at branches
+                # split into subtrees; edp is checked relative to branches - 
+                # only 1 type of functional unit on each subtree
+
+                # todo - as simple paths or as subtrees?
+                std_dfg_wire_ops = nx.read_gml(self.dfg.G_standard_with_wire_ops, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph_standard_with_wire_ops.gml")
+                # dfs_edges = list(nx.dfs_edges(std_dfg_wire_ops, source=0))
+                dfs_edges = list(nx.dfs_labeled_edges(std_dfg_wire_ops, source=0))
+                dfs_subtrees = {}
+                curr_start = 0
+                curr_latency = 0
+                curr_power = 0
+                dfs_subtree_funct_units = {}
+                for i in range(len(dfs_edges)):
+                    edge = dfs_edges[i]
+                    # add power and latency
+                    # add funct unit to subtree funct unit count if has pipeline vers
+
+                    if edge[2] == "reverse":
+                        # store curr power, latency, and subtree
+                        # also store list/count of funct units 
+                        dfs_subtrees.append([dfs_edges[curr_start:i], curr_power, curr_latency, dfs_subtree_funct_units])
+                        curr_start = i
+                dfs_subtrees.append([dfs_edges[curr_start:], curr_power, curr_latency, dfs_subtree_funct_units])
+                # add power and latency for last subtree
+
+                # iter through list of subtrees and attempt to optimise edp via funct unit changes
+                for subtree in dfs_subtrees:
+                    pass
+
+
         self.interface_db.create_json_obj()
         self.interface_db.create_dot_file(self.build_dir)
         with open(f"{self.build_dir}/parse_results/interface_db.json", "w") as f:

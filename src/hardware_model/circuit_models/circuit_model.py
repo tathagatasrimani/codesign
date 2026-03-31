@@ -70,10 +70,36 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
-            # Add4, Add8, Add32
+            # Variable bitwidth ops
             "Add4": lambda: self.make_sym_lat_wc(self.gamma["Add4"]),
             "Add8": lambda: self.make_sym_lat_wc(self.gamma["Add8"]),
             "Add32": lambda: self.make_sym_lat_wc(self.gamma["Add32"]),
+            "Sub4": lambda: self.make_sym_lat_wc(self.gamma["Sub4"]),
+            "Sub8": lambda: self.make_sym_lat_wc(self.gamma["Sub8"]),
+            "Sub32": lambda: self.make_sym_lat_wc(self.gamma["Sub32"]),
+            "Mult4": lambda: self.make_sym_lat_wc(self.gamma["Mult4"]),
+            "Mult8": lambda: self.make_sym_lat_wc(self.gamma["Mult8"]),
+            "Mult32": lambda: self.make_sym_lat_wc(self.gamma["Mult32"]),
+            "FloorDiv4": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv4"]),
+            "FloorDiv8": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv8"]),
+            "FloorDiv32": lambda: self.make_sym_lat_wc(self.gamma["FloorDiv32"]),
+            "LShift4": lambda: self.make_sym_lat_wc(self.gamma["LShift4"]),
+            "LShift8": lambda: self.make_sym_lat_wc(self.gamma["LShift8"]),
+            "LShift32": lambda: self.make_sym_lat_wc(self.gamma["LShift32"]),
+            "RShift4": lambda: self.make_sym_lat_wc(self.gamma["RShift4"]),
+            "RShift8": lambda: self.make_sym_lat_wc(self.gamma["RShift8"]),
+            "RShift32": lambda: self.make_sym_lat_wc(self.gamma["RShift32"]),
+            # Float var bitwidth ops
+            "Fpadd32": lambda: self.make_sym_lat_wc(self.gamma["Fpadd32"]),
+            "Fpsub32": lambda: self.make_sym_lat_wc(self.gamma["Fpsub32"]),
+            "Fpmul32": lambda: self.make_sym_lat_wc(self.gamma["Fpmul32"]),
+            "Fpmul32_p2": lambda: self.make_sym_lat_wc(self.gamma["Fpmul32_p2"]),
+            "Fpmul32_p4": lambda: self.make_sym_lat_wc(self.gamma["Fpmul32_p4"]),
+            "Fpdiv32": lambda: self.make_sym_lat_wc(self.gamma["Fpdiv32"]),
+            "Fpadd64": lambda: self.make_sym_lat_wc(self.gamma["Fpadd64"]),
+            "Fpsub64": lambda: self.make_sym_lat_wc(self.gamma["Fpsub64"]),
+            "Fpmul64": lambda: self.make_sym_lat_wc(self.gamma["Fpmul64"]),
+            "Fpdiv64": lambda: self.make_sym_lat_wc(self.gamma["Fpdiv64"]),
         }
         self.DFF_DELAY = 10*self.tech_model.delay # ~10 FO4 delays
 
@@ -112,10 +138,37 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
-            # Add4, Add8, Add32
+
+            # Variable bitwidth ops
             "Add4": lambda: self.make_sym_energy_act("Add4", self.alpha["Add4"]),
             "Add8": lambda: self.make_sym_energy_act("Add8", self.alpha["Add8"]),
             "Add32": lambda: self.make_sym_energy_act("Add32", self.alpha["Add32"]),
+            "Sub4": lambda: self.make_sym_energy_act("Sub4", self.alpha["Sub4"]),
+            "Sub8": lambda: self.make_sym_energy_act("Sub8", self.alpha["Sub8"]),
+            "Sub32": lambda: self.make_sym_energy_act("Sub32", self.alpha["Sub32"]),
+            "Mult4": lambda: self.make_sym_energy_act("Mult4", self.alpha["Mult4"]),
+            "Mult8": lambda: self.make_sym_energy_act("Mult8", self.alpha["Mult8"]),
+            "Mult32": lambda: self.make_sym_energy_act("Mult32", self.alpha["Mult32"]),
+            "FloorDiv4": lambda: self.make_sym_energy_act("FloorDiv4", self.alpha["FloorDiv4"]),
+            "FloorDiv8": lambda: self.make_sym_energy_act("FloorDiv8", self.alpha["FloorDiv8"]),
+            "FloorDiv32": lambda: self.make_sym_energy_act("FloorDiv32", self.alpha["FloorDiv32"]),
+            "LShift4": lambda: self.make_sym_energy_act("LShift4", self.alpha["LShift4"]),
+            "LShift8": lambda: self.make_sym_energy_act("LShift8", self.alpha["LShift8"]),
+            "LShift32": lambda: self.make_sym_energy_act("LShift32", self.alpha["LShift32"]),
+            "RShift4": lambda: self.make_sym_energy_act("RShift4", self.alpha["RShift4"]),
+            "RShift8": lambda: self.make_sym_energy_act("RShift8", self.alpha["RShift8"]),
+            "RShift32": lambda: self.make_sym_energy_act("RShift32", self.alpha["RShift32"]),
+            # Float var bitwidth ops
+            "Fpadd32": lambda: self.make_sym_energy_act("Fpadd32", self.alpha["Fpadd32"]),
+            "Fpsub32": lambda: self.make_sym_energy_act("Fpsub32", self.alpha["Fpsub32"]),
+            "Fpmul32": lambda: self.make_sym_energy_act("Fpmul32", self.alpha["Fpmul32"]),
+            "Fpmul32_p2": lambda: self.make_sym_energy_act("Fpmul32_p2", self.alpha["Fpmul32_p2"]),
+            "Fpmul32_p4": lambda: self.make_sym_energy_act("Fpmul32_p4", self.alpha["Fpmul32_p4"]),
+            "Fpdiv32": lambda: self.make_sym_energy_act("Fpdiv32", self.alpha["Fpdiv32"]),
+            "Fpadd64": lambda: self.make_sym_energy_act("Fpadd64", self.alpha["Fpadd64"]),
+            "Fpsub64": lambda: self.make_sym_energy_act("Fpsub64", self.alpha["Fpsub64"]),
+            "Fpmul64": lambda: self.make_sym_energy_act("Fpmul64", self.alpha["Fpmul64"]),
+            "Fpdiv64": lambda: self.make_sym_energy_act("Fpdiv64", self.alpha["Fpdiv64"]),
         }
         self.DFF_ENERGY = 20*self.tech_model.E_act_inv # TODO: get actual value
 
@@ -153,10 +206,37 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
-            # Add4, Add8, Add32
+
+            # Variable bitwidth ops
             "Add4": lambda: self.make_sym_power_pass("Add4", self.beta["Add4"]),
             "Add8": lambda: self.make_sym_power_pass("Add8", self.beta["Add8"]),
             "Add32": lambda: self.make_sym_power_pass("Add32", self.beta["Add32"]),
+            "Sub4": lambda: self.make_sym_power_pass("Sub4", self.beta["Sub4"]),
+            "Sub8": lambda: self.make_sym_power_pass("Sub8", self.beta["Sub8"]),
+            "Sub32": lambda: self.make_sym_power_pass("Sub32", self.beta["Sub32"]),
+            "Mult4": lambda: self.make_sym_power_pass("Mult4", self.beta["Mult4"]),
+            "Mult8": lambda: self.make_sym_power_pass("Mult8", self.beta["Mult8"]),
+            "Mult32": lambda: self.make_sym_power_pass("Mult32", self.beta["Mult32"]),
+            "FloorDiv4": lambda: self.make_sym_power_pass("FloorDiv4", self.beta["FloorDiv4"]),
+            "FloorDiv8": lambda: self.make_sym_power_pass("FloorDiv8", self.beta["FloorDiv8"]),
+            "FloorDiv32": lambda: self.make_sym_power_pass("FloorDiv32", self.beta["FloorDiv32"]),
+            "LShift4": lambda: self.make_sym_power_pass("LShift4", self.beta["LShift4"]),
+            "LShift8": lambda: self.make_sym_power_pass("LShift8", self.beta["LShift8"]),
+            "LShift32": lambda: self.make_sym_power_pass("LShift32", self.beta["LShift32"]),
+            "RShift4": lambda: self.make_sym_power_pass("RShift4", self.beta["RShift4"]),
+            "RShift8": lambda: self.make_sym_power_pass("RShift8", self.beta["RShift8"]),
+            "RShift32": lambda: self.make_sym_power_pass("RShift32", self.beta["RShift32"]),
+            # Float var bitwidth ops
+            "Fpadd32": lambda: self.make_sym_power_pass("Fpadd32", self.beta["Fpadd32"]),
+            "Fpsub32": lambda: self.make_sym_power_pass("Fpsub32", self.beta["Fpsub32"]),
+            "Fpmul32": lambda: self.make_sym_power_pass("Fpmul32", self.beta["Fpmul32"]),
+            "Fpmul32_p2": lambda: self.make_sym_power_pass("Fpmul32_p2", self.beta["Fpmul32_p2"]),
+            "Fpmul32_p4": lambda: self.make_sym_power_pass("Fpmul32_p4", self.beta["Fpmul32_p4"]),
+            "Fpdiv32": lambda: self.make_sym_power_pass("Fpdiv32", self.beta["Fpdiv32"]),
+            "Fpadd64": lambda: self.make_sym_power_pass("Fpadd64", self.beta["Fpadd64"]),
+            "Fpsub64": lambda: self.make_sym_power_pass("Fpsub64", self.beta["Fpsub64"]),
+            "Fpmul64": lambda: self.make_sym_power_pass("Fpmul64", self.beta["Fpmul64"]),
+            "Fpdiv64": lambda: self.make_sym_power_pass("Fpdiv64", self.beta["Fpdiv64"]),
         }
         self.DFF_PASSIVE_POWER = 20*self.tech_model.P_pass_inv # TODO: get actual value
 
@@ -192,10 +272,37 @@ class CircuitModel:
             "Call": lambda: 0,
             "read": lambda: 0,
             "write": lambda: 0,
-            # Add4, Add8, Add32
+
+            # Variable bitwidth ops
             "Add4": lambda: self.make_sym_area(self.area_coeffs["Add4"]),
             "Add8": lambda: self.make_sym_area(self.area_coeffs["Add8"]),
             "Add32": lambda: self.make_sym_area(self.area_coeffs["Add32"]),
+            "Sub4": lambda: self.make_sym_area(self.area_coeffs["Sub4"]),
+            "Sub8": lambda: self.make_sym_area(self.area_coeffs["Sub8"]),
+            "Sub32": lambda: self.make_sym_area(self.area_coeffs["Sub32"]),
+            "Mult4": lambda: self.make_sym_area(self.area_coeffs["Mult4"]),
+            "Mult8": lambda: self.make_sym_area(self.area_coeffs["Mult8"]),
+            "Mult32": lambda: self.make_sym_area(self.area_coeffs["Mult32"]),
+            "FloorDiv4": lambda: self.make_sym_area(self.area_coeffs["FloorDiv4"]),
+            "FloorDiv8": lambda: self.make_sym_area(self.area_coeffs["FloorDiv8"]),
+            "FloorDiv32": lambda: self.make_sym_area(self.area_coeffs["FloorDiv32"]),
+            "LShift4": lambda: self.make_sym_area(self.area_coeffs["LShift4"]),
+            "LShift8": lambda: self.make_sym_area(self.area_coeffs["LShift8"]),
+            "LShift32": lambda: self.make_sym_area(self.area_coeffs["LShift32"]),
+            "RShift4": lambda: self.make_sym_area(self.area_coeffs["RShift4"]),
+            "RShift8": lambda: self.make_sym_area(self.area_coeffs["RShift8"]),
+            "RShift32": lambda: self.make_sym_area(self.area_coeffs["RShift32"]),
+            # Float var bitwidth ops
+            "Fpadd32": lambda: self.make_sym_area(self.area_coeffs["Fpadd32"]),
+            "Fpsub32": lambda: self.make_sym_area(self.area_coeffs["Fpsub32"]),
+            "Fpmul32": lambda: self.make_sym_area(self.area_coeffs["Fpmul32"]),
+            "Fpmul32_p2": lambda: self.make_sym_area(self.area_coeffs["Fpmul32_p2"]),
+            "Fpmul32_p4": lambda: self.make_sym_area(self.area_coeffs["Fpmul32_p4"]),
+            "Fpdiv32": lambda: self.make_sym_area(self.area_coeffs["Fpdiv32"]),
+            "Fpadd64": lambda: self.make_sym_area(self.area_coeffs["Fpadd64"]),
+            "Fpsub64": lambda: self.make_sym_area(self.area_coeffs["Fpsub64"]),
+            "Fpmul64": lambda: self.make_sym_area(self.area_coeffs["Fpmul64"]),
+            "Fpdiv64": lambda: self.make_sym_area(self.area_coeffs["Fpdiv64"]),
         }
 
         # memories output from forward pass

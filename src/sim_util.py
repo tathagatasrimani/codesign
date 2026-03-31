@@ -349,55 +349,195 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 def get_module_map():
     module_map = {
         # from HLS IR
-        #"add": "Add16",
-        #"fadd": "Fpadd16",
-        "fadd": "Fpadd16",
-        "dadd": "Fpadd16",
-        #"sub": "Sub16",
-        "fsub": "Fpsub16",
-        "dsub": "Fpsub16",
-        "dmul": "Fpmul16",
-        #"mul": "Mult16",
-        "fmul": "Fpmul16",
-        #"div": "FloorDiv16",
-        "fdiv": "Fpdiv16",
-        "ddiv": "Fpdiv16",
+        # from HLS IR
+        "add": "Add16",
+        "fadd": "Fpadd32",
+        "dadd": "Fpadd64",
+        "sub": "Sub16",
+        "fsub": "Fpsub32",
+        "dsub": "Fpsub64",
+        "dmul": "Fpmul64",
+        "mul": "Mult16",
+        "fmul": "Fpmul32",
+        "div": "FloorDiv16",
+        "fdiv": "Fpdiv32",
+        "ddiv": "Fpdiv64",
         "lshr": "RShift16",
         "shl": "LShift16",
         "call": "Call",
 
         # from MLIR (blackboxed arith ops)
+        "addf": "Fpadd32",
+        "subf": "Fpsub32",
+        "mulf": "Fpmul32",
+        "divf": "Fpdiv32",
+        "exp_bb": "Exp16",
+        "addf_ctrl_chain": "Fpadd32",
+        "subf_ctrl_chain": "Fpsub32",
+        "mulf_ctrl_chain": "Fpmul32",
+        "divf_ctrl_chain": "Fpdiv32",
+        "exp_bb_ctrl_chain": "Exp16",
+
+        # variable bitwidth - initial mapping to define modules
         "add4": "Add4",
         "add8": "Add8",
         "add16": "Add16",
         "add32": "Add32",
-        "addf": "Fpadd16",
-        "subf": "Fpsub16",
-        "mulf": "Fpmul16",
-        "divf": "Fpdiv16",
-        "exp_bb": "Exp16",
-        "addf_ctrl_chain": "Fpadd16",
-        "subf_ctrl_chain": "Fpsub16",
-        "mulf_ctrl_chain": "Fpmul16",
-        "divf_ctrl_chain": "Fpdiv16",
-        "exp_bb_ctrl_chain": "Exp16",
+        "sub4": "Sub4",
+        "sub8": "Sub8",
+        "sub16": "Sub16",
+        "sub32": "Sub32",
+        "mul4": "Mult4",
+        "mul8": "Mult8",
+        "mul16": "Mult16",
+        "mul32": "Mult32",
+        "div4": "FloorDiv4",
+        "div8": "FloorDiv8",
+        "div16": "FloorDiv16",
+        "div32": "FloorDiv32",
+        "lshr4": "RShift4",
+        "lshr8": "RShift8",
+        "lshr16": "RShift16",
+        "lshr32": "RShift32",
+        "shl4": "LShift4",
+        "shl8": "LShift8",
+        "shl16": "LShift16",
+        "shl32": "LShift32",
+        "mulf_p2" : "Fpmul32_p2",
+        "mulf_p4" : "Fpmul32_p4",
+
+        # # floating point variable bitwidth - initial mapping to define modules
+        # "fadd16": "Fpadd16",
+        # "fadd32": "Fpadd32",
+        # "fadd64": "Fpadd64",
+        # "fsub16": "Fpsub16",
+        # "fsub32": "Fpsub32",
+        # "fsub64": "Fpsub64",
+        # "fmul16": "Fpmul16",
+        # "fmul32": "Fpmul32",
+        # "fmul64": "Fpmul64",
+        # "fdiv16": "Fpdiv16",
+        # "fdiv32": "Fpdiv32",
+        # "fdiv64": "Fpdiv64",
     }
     return module_map
 
-def map_operator_types(full_netlist):
+
+def get_module_pipe_cycles():
+    module_map = {
+        # All values set to 1
+        "add": 1,
+        "fadd": 1,
+        "dadd": 1,
+        "sub": 1,
+        "fsub": 1,
+        "dsub": 1,
+        "dmul": 1,
+        "mul": 1,
+        "fmul": 1,
+        "div": 1,
+        "fdiv": 1,
+        "ddiv": 1,
+        "lshr": 1,
+        "shl": 1,
+        "call": 1,
+
+        "addf": 1,
+        "subf": 1,
+        "mulf": 1,
+        "divf": 1,
+        "exp_bb": 1,
+        "addf_ctrl_chain": 1,
+        "subf_ctrl_chain": 1,
+        "mulf_ctrl_chain": 1,
+        "divf_ctrl_chain": 1,
+        "exp_bb_ctrl_chain": 1,
+
+        "mulf_p2" : 2,
+        "mulf_p4" : 4,
+        "add4": 1,
+        "add8": 1,
+        "add16": 1,
+        "add32": 1,
+        "sub4": 1,
+        "sub8": 1,
+        "sub16": 1,
+        "sub32": 1,
+        "mul4": 1,
+        "mul8": 1,
+        "mul16": 1,
+        "mul32": 1,
+        "div4": 1,
+        "div8": 1,
+        "div16": 1,
+        "div32": 1,
+        "lshr4": 1,
+        "lshr8": 1,
+        "lshr16": 1,
+        "lshr32": 1,
+        "shl4": 1,
+        "shl8": 1,
+        "shl16": 1,
+        "shl32": 1,
+    }
+    return module_map
+
+# Module map with variable bitwidth support
+def get_var_bw_module_map():
+    module_map = {
+        # Variable bitwidth selection only for integer ops, as floating point requires specific width due to formatting -
+        # Single/double precision float bitwidth variation is already accounted for in module map
+        "add": [{"name" : "Add4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "Add8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "Add16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "Add32", "in_bw" : 64, "out_bw" : 32}],
+        "sub": [{"name" : "Sub4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "Sub8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "Sub16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "Sub32", "in_bw" : 64, "out_bw" : 32}],
+        "mul": [{"name" : "Mult4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "Mult8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "Mult16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "Mult32", "in_bw" : 64, "out_bw" : 32}],
+        "div": [{"name" : "FloorDiv4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "FloorDiv8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "FloorDiv16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "FloorDiv32", "in_bw" : 64, "out_bw" : 32}],
+        "lshr": [{"name" : "RShift4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "RShift8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "RShift16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "RShift32", "in_bw" : 64, "out_bw" : 32}],
+        "shl": [{"name" : "LShift4", "in_bw" : 8, "out_bw" : 4}, 
+                {"name" : "LShift8", "in_bw" : 16, "out_bw" : 8}, 
+                {"name" : "LShift16", "in_bw" : 32, "out_bw" : 16}, 
+                {"name" : "LShift32", "in_bw" : 64, "out_bw" : 32}],
+    }
+    return module_map
+
+
+def get_var_pipe_module_map():
+    module_map = {
+        "mulf": [{"name" : "Fpmul32", "clk_cycles" : 1}, 
+                {"name" : "Fpmul32_p2", "clk_cycles" : 2}, 
+                {"name" : "Fpmul32_p4", "clk_cycles" : 4}],
+        "fmul": [{"name" : "Fpmul32", "clk_cycles" : 1}, 
+                {"name" : "Fpmul32_p2", "clk_cycles" : 2}, 
+                {"name" : "Fpmul32_p4", "clk_cycles" : 4}],
+    }
+    return module_map
+
+def map_operator_types(full_netlist, latency):
     """
     Map the operator types in the netlist to standardized function names using module_map.
     """
     module_map = get_module_map()
-    bw_module_map = {
-        # from HLS IR
-        # TODO: Temp mapping for testing purposes of floats to variable bw adds - REMOVE BEFORE FINAL
-        #"add": "Add16",
-        #"fadd": "Fpadd16",
-        "fadd": [{"name" : "Add4", "in_bw" : 8, "out_bw" : 4}, 
-                {"name" : "Add8", "in_bw" : 16, "out_bw" : 8}, 
-                {"name" : "Add16", "in_bw" : 32, "out_bw" : 16}, 
-                {"name" : "Add32", "in_bw" : 64, "out_bw" : 32}]}
+    bw_module_map = get_var_bw_module_map()
+    pipe_cycles_map = get_module_pipe_cycles()
+    pipe_map = get_var_pipe_module_map()
+    node_list_pipe = []
+    tot_latency = 0
+    tot_pwr = 1
+
     for node in full_netlist:
         raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
         pins = full_netlist.nodes[node].get('pins', {})
@@ -405,9 +545,9 @@ def map_operator_types(full_netlist):
         output_bw = 0
         for pin in pins:
             if pin.get('dir') == '0':
-                input_bw += pin.get('bitwidth', 0)
+                input_bw += int(pin.get('bw', 0))
             elif pin.get('dir') == '1':
-                output_bw += pin.get('bitwidth', 0)
+                output_bw += int(pin.get('bw', 0))
         if raw_fn is None:
             raw_fn = "N/A"
         
@@ -435,6 +575,13 @@ def map_operator_types(full_netlist):
                 full_netlist.nodes[node]['function'] = raw_fn_val
         else:
             full_netlist.nodes[node]['function'] = raw_fn
+
+        if raw_fn in pipe_map:
+            for pipe_node in pipe_map[raw_fn]:
+                full_netlist.nodes[node]['function'] = {k: max(((tot_latency + latency[v])**2)*tot_pwr) for k, v in pipe_node.items()}
+        else:
+            tot_latency += pipe_map[raw_fn]
+        
     return full_netlist
 
 def get_latest_log_dir():

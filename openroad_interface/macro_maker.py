@@ -91,7 +91,8 @@ class MacroMaker:
         if subdirectory is not None:
             self.directory = os.path.join(self.directory, subdirectory)
 
-        tech_params_file_path = os.path.join(self.codesign_root_dir, "src/yaml/tech_params.yaml")
+        # updated to use file from functional_unit_tech_params submodule
+        tech_params_file_path = os.path.join(self.codesign_root_dir, "functional_unit_tech_params/tech_params.yaml")
 
         tech_params = yaml.load(open(tech_params_file_path, "r"), Loader=yaml.Loader)
 

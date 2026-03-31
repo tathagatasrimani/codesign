@@ -1,6 +1,6 @@
 import yaml
 
-tech_params = yaml.load(open("src/yaml/tech_params.yaml", "r"), Loader=yaml.Loader)
+tech_params = yaml.load(open("functional_unit_tech_params/tech_params.yaml", "r"), Loader=yaml.Loader)
 
 latency = tech_params["latency"]
 dynamic_power = tech_params["dynamic_power"]
