@@ -1552,8 +1552,7 @@ if __name__ == "__main__":
     parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
     parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
-    parser.ad
-    d_argument("--max_power_density", type=float, help="maximum power density to allow")
+    parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
