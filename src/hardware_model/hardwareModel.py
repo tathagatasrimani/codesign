@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 import networkx as nx
 import sympy as sp
-from src import cacti_util
 from src.hardware_model.base_parameters import base_parameters
 from src.hardware_model.circuit_models import circuit_model
 
@@ -21,18 +20,6 @@ from src import sim_util
 
 from src.inverse_pass.constraint import Constraint
 from src.sim_util import solve_gp_with_fallback
-
-from src.hardware_model.tech_models import bulk_model
-from src.hardware_model.tech_models import bulk_bsim4_model
-from src.hardware_model.tech_models import vs_model
-from src.hardware_model.tech_models import mvs_si_model
-from src.hardware_model.tech_models import mvs_2_model
-from src.hardware_model.tech_models import vscnfet_model
-from src.hardware_model.tech_models import mvs_general_model
-from src.hardware_model.tech_models import sweep_model
-from src.hardware_model.tech_models import sweep_brute_force_model
-from src.hardware_model.tech_models import sweep_basic_model
-from src.hardware_model.tech_models import mvs_self_consistent_model
 from openroad_interface import openroad_run
 from openroad_interface import openroad_run_hier
 
@@ -57,6 +44,9 @@ def symbolic_min(a, b, evaluate=True):
     Min(a, b) in a format which ipopt accepts.
     """
     return 0.5 * (a + b - sp.Abs(a - b, evaluate=evaluate))
+
+
+CACTI_TECH_NODES = [0.032, 0.045, 0.065, 0.090, 0.180]  # remove 0.022 for now
 
 class BlockVector:
     op_types = set([
@@ -174,7 +164,7 @@ class HardwareModel:
         self.tmp_dir = tmp_dir
         # HARDCODED UNTIL WE COME BACK TO MEMORY MODELING
         self.cacti_tech_node = min(
-            cacti_util.valid_tech_nodes,
+            CACTI_TECH_NODES,
             key=lambda x: abs(x - 7 * 1e-3),
         )
         print(f"cacti tech node: {self.cacti_tech_node}")
@@ -259,29 +249,40 @@ class HardwareModel:
 
     def reset_tech_model(self):
         if self.model_cfg["model_type"] == "bulk":
+            from src.hardware_model.tech_models import bulk_model
             self.tech_model = bulk_model.BulkModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "bulk_bsim4":
+            from src.hardware_model.tech_models import bulk_bsim4_model
             self.tech_model = bulk_bsim4_model.BulkBSIM4Model(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "vs":
             if self.model_cfg["vs_model_type"] == "base":
+                from src.hardware_model.tech_models import vs_model
                 self.tech_model = vs_model.VSModel(self.model_cfg, self.base_params)
             elif self.model_cfg["vs_model_type"] == "mvs_si":
+                from src.hardware_model.tech_models import mvs_si_model
                 self.tech_model = mvs_si_model.MVSSiModel(self.model_cfg, self.base_params)
             elif self.model_cfg["vs_model_type"] == "mvs2":
+                from src.hardware_model.tech_models import mvs_2_model
                 self.tech_model = mvs_2_model.MVS2Model(self.model_cfg, self.base_params)
             elif self.model_cfg["vs_model_type"] == "vscnfet":
+                from src.hardware_model.tech_models import vscnfet_model
                 self.tech_model = vscnfet_model.VSCNFetModel(self.model_cfg, self.base_params)
             else:
                 raise ValueError(f"Invalid vs model type: {self.model_cfg['vs_model_type']}")
         elif self.model_cfg["model_type"] == "sweep":
+            from src.hardware_model.tech_models import sweep_model
             self.tech_model = sweep_model.SweepModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "sweep_brute_force":
+            from src.hardware_model.tech_models import sweep_brute_force_model
             self.tech_model = sweep_brute_force_model.SweepBruteForceModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "sweep_basic":
+            from src.hardware_model.tech_models import sweep_basic_model
             self.tech_model = sweep_basic_model.SweepBasicModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_general":
+            from src.hardware_model.tech_models import mvs_general_model
             self.tech_model = mvs_general_model.MVSGeneralModel(self.model_cfg, self.base_params)
         elif self.model_cfg["model_type"] == "mvs_self_consistent":
+            from src.hardware_model.tech_models import mvs_self_consistent_model
             self.tech_model = mvs_self_consistent_model.MVSSelfConsistentModel(self.model_cfg, self.base_params)
         else:
             raise ValueError(f"Invalid model type: {self.model_cfg['model_type']}")

@@ -1,9 +1,6 @@
 import os
 import yaml
 import logging
-import src.cacti.cacti_python.get_dat as dat
-import src.cacti.cacti_python.get_IO as IO
-from src.cacti.cacti_python.parameter import InputParameter
 from src import global_symbol_table
 from src import sim_util
 

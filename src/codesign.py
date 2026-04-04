@@ -18,12 +18,10 @@ from src.forward_pass.netlist_parse import parse_yosys_json
 
 logger = logging.getLogger("codesign")
 
-from src import cacti_util
 from src import sim_util
 from src.hardware_model import hardwareModel
 from src.inverse_pass import optimize
 from src.forward_pass import schedule
-from src import memory
 from src.forward_pass import ccore_update
 from src.forward_pass import schedule_vitis
 from src.forward_pass.scale_hls_port_fix import scale_hls_port_fix
@@ -1237,6 +1235,7 @@ class Codesign:
                 logger.info(f"memory vals: {self.hw.circuit_model.memories[memory]}")
                 mem_type = self.hw.circuit_model.memories[memory]["type"]
                 logger.info(f"generating symbolic cacti for {memory} of type {mem_type}")
+                from src import cacti_util
                 # generate mem or buf depending on type of memory
                 if mem_type == "Mem":
                     self.hw.circuit_model.symbolic_mem[memory] = cacti_util.gen_symbolic("Mem", mem_cache_cfg, opt_vals, use_piecewise=False)
@@ -1330,6 +1329,12 @@ class Codesign:
     def save_dat(self):
         # Save tech node info to another file prefixed by prev_ so we can restore
         org_dat_file = self.hw.cacti_dat_file
+        if self.no_memory or not os.path.exists(org_dat_file):
+            logger.info(
+                "Skipping CACTI tech dat backup: memory modeling is disabled or the CACTI dat file is missing."
+            )
+            return
+
         tech_nm = os.path.basename(org_dat_file)
         tech_nm = os.path.splitext(tech_nm)[0]
 
@@ -1340,6 +1345,9 @@ class Codesign:
 
     def restore_dat(self):
         dat_file = self.hw.cacti_dat_file
+        if self.no_memory or not os.path.exists(dat_file):
+            return
+
         tech_nm = os.path.basename(dat_file)
         tech_nm = os.path.splitext(tech_nm)[0]
 
@@ -1544,16 +1552,12 @@ if __name__ == "__main__":
     parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
     parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
-    parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
+    parser.ad
+    d_argument("--max_power_density", type=float, help="maximum power density to allow")
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
-    parser.add_argument(
-        "--generate_FPGA_bitstream",
-        action="store_true",
-        default=None,
-        help="run full Vitis flow for FPGA artifact generation and stop after forward pass",
-    )
+    parser.add_argument("--generate_FPGA_bitstream", action="store_true", default=None, help="run full Vitis flow for FPGA artifact generation and stop after forward pass",)
     args = parser.parse_args()
 
     main(args)
