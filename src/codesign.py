@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import copy
 import shlex
+import glob
 import networkx as nx
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -38,6 +39,7 @@ from test import checkpoint_controller
 DEBUG_YOSYS = False  # set to True to debug yosys output.
 
 FLOW_SUCCESS_MSG = "FLOW END: Design flow completed successfully for iterations = "
+FPGA_BITSTREAM_SUCCESS_MSG = "FLOW END: FPGA bitstream generation completed successfully."
 
 class Codesign:
     def __init__(self, args):
@@ -147,6 +149,87 @@ class Codesign:
 
         self.config_json_path_scalehls = "ScaleHLS-HIDA/test/Transforms/Directive/config.json"
         self.config_json_path = self.benchmark_setup_dir + "/config.json"
+
+    def _ensure_export_design_enabled(self, tcl_file):
+        """
+        Ensure export_design is present in the generated HLS Tcl when running in bitstream mode.
+        """
+        if not os.path.exists(tcl_file):
+            raise FileNotFoundError(f"Cannot enable export_design because Tcl file does not exist: {tcl_file}")
+
+        with open(tcl_file, "r") as f:
+            lines = f.readlines()
+
+        has_export_design = any(line.lstrip().startswith("export_design") for line in lines)
+        if has_export_design:
+            return
+
+        updated_lines = []
+        uncommented = False
+        for line in lines:
+            stripped = line.lstrip()
+            if not uncommented and stripped.startswith("#"):
+                commented = stripped[1:].lstrip()
+                if commented.startswith("export_design"):
+                    indent = line[:len(line) - len(line.lstrip())]
+                    updated_lines.append(f"{indent}{commented}\n" if not commented.endswith("\n") else f"{indent}{commented}")
+                    uncommented = True
+                    continue
+            updated_lines.append(line)
+
+        if not uncommented:
+            inserted = False
+            for i, line in enumerate(updated_lines):
+                if line.strip() == "exit":
+                    updated_lines.insert(i, "export_design\n")
+                    inserted = True
+                    break
+            if not inserted:
+                updated_lines.append("export_design\n")
+
+        with open(tcl_file, "w") as f:
+            f.writelines(updated_lines)
+
+    def _find_fpga_artifacts(self, search_root):
+        """
+        Locate generated FPGA programming artifacts under a run directory.
+        """
+        # Include fallback packaging outputs so users still get artifacts copied even if
+        # the run produces export packages/IP instead of a final .bit/.xclbin image.
+        patterns = ["**/*.bit", "**/*.xclbin", "**/*.xo", "**/impl/export.zip"]
+        artifacts = []
+        for pattern in patterns:
+            artifacts.extend(glob.glob(os.path.join(search_root, pattern), recursive=True))
+        return sorted(set(artifacts))
+
+    def _copy_fpga_artifacts_to_tmp_results(self, artifacts, save_dir):
+        """
+        Copy FPGA programming artifacts to the same tmp results directory used by normal forward-pass parsing.
+        """
+        save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        parse_results_dir = os.path.join(save_path, "parse_results")
+        fpga_results_dir = os.path.join(parse_results_dir, "fpga_artifacts")
+        os.makedirs(fpga_results_dir, exist_ok=True)
+
+        copied_artifacts = []
+        for artifact in artifacts:
+            relative_artifact_path = os.path.relpath(artifact, save_path)
+            dest_path = os.path.join(fpga_results_dir, relative_artifact_path)
+            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+            shutil.copy2(artifact, dest_path)
+            copied_artifacts.append(dest_path)
+
+        return copied_artifacts
+
+    def _ensure_fpga_results_dir(self, save_dir):
+        """
+        Ensure parse_results/fpga_artifacts exists in bitstream mode even when no artifacts are found.
+        """
+        save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+        parse_results_dir = os.path.join(save_path, "parse_results")
+        fpga_results_dir = os.path.join(parse_results_dir, "fpga_artifacts")
+        os.makedirs(fpga_results_dir, exist_ok=True)
+        return fpga_results_dir
 
     # any arguments specified on CLI will override the default config
     def set_config(self, args):
@@ -673,6 +756,7 @@ class Codesign:
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
         self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
+        generate_fpga_bitstream = bool(self.cfg["args"].get("generate_FPGA_bitstream", False))
 
         # prep before running scalehls
         if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
@@ -742,6 +826,11 @@ class Codesign:
         
         # Build the base command
         base_command = ["vitis_hls", "-f", "tcl_script_new.tcl"] if arch_opt_pipeline == "scalehls" else ["vitis_hls", "hls_new.tcl", self.benchmark_name, "syn", "-l", "syn.log"]
+
+        if generate_fpga_bitstream and not setup:
+            tcl_to_run = "tcl_script_new.tcl" if arch_opt_pipeline == "scalehls" else "hls_new.tcl"
+            self._ensure_export_design_enabled(tcl_to_run)
+            logger.info(f"FPGA bitstream mode enabled. Ensured export_design is present in {tcl_to_run}.")
         
         # Convert command list to string for bash -c with proper shell escaping
         command_str = " ".join(shlex.quote(arg) for arg in base_command)
@@ -764,41 +853,70 @@ class Codesign:
             with open("vitis_hls.log", "w") as logfile:
                 p = subprocess.Popen(full_command, stdout=logfile, stderr=subprocess.STDOUT, text=True)
 
-            completed_required_sections = False
-            while True:
-                time.sleep(1)
-                if os.path.exists("vitis_hls.log"):
-                    with open("vitis_hls.log", "r") as f:
-                        for line in f:
-                            if "Finished Generating all RTL models" in line:
-                                completed_required_sections = True
-                                break
-                if completed_required_sections:
-                    p.terminate()
-                    try:
-                        p.wait(timeout=10)
-                    except Exception:
-                        p.kill()
-                    logger.info("Vitis HLS process terminated early after RTL models generated.")
-                    break
-                # Check if process already exited
-                if p.poll() is not None:
-                    break
+            if generate_fpga_bitstream and not setup:
+                p.wait()
+                logger.info("Vitis HLS process completed in FPGA bitstream mode.")
+            else:
+                completed_required_sections = False
+                while True:
+                    time.sleep(1)
+                    if os.path.exists("vitis_hls.log"):
+                        with open("vitis_hls.log", "r") as f:
+                            for line in f:
+                                if "Finished Generating all RTL models" in line:
+                                    completed_required_sections = True
+                                    break
+                    if completed_required_sections:
+                        p.terminate()
+                        try:
+                            p.wait(timeout=10)
+                        except Exception:
+                            p.kill()
+                        logger.info("Vitis HLS process terminated early after RTL models generated.")
+                        break
+                    # Check if process already exited
+                    if p.poll() is not None:
+                        break
 
             elapsed = time.time() - start_time
             logger.info(f"Vitis HLS command elapsed time: {elapsed:.2f} seconds ({elapsed/60:.2f} minutes)")
 
             # Read the log for output
-            if p.returncode not in (0, None) and not completed_required_sections:
+            if generate_fpga_bitstream and not setup and p.returncode != 0:
+                logger.error("Vitis HLS bitstream-mode command failed: see vitis_hls.log")
+                raise Exception("Vitis HLS bitstream-mode command failed: see vitis_hls.log")
+
+            if (not generate_fpga_bitstream or setup) and p.returncode not in (0, None) and not completed_required_sections:
                 logger.error(f"Vitis HLS command failed: see vitis_hls.log")
                 raise Exception(f"Vitis HLS command failed: see vitis_hls.log")
             if self.cfg["args"]["arch_opt_pipeline"] == "streamhls":
                 save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
                 shutil.copytree(f"{save_path}/hls_{self.benchmark_name}/solution1", f"{save_path}/{self.benchmark_name}/solution1")
+
+            if generate_fpga_bitstream and not setup:
+                save_path = os.path.join(os.path.dirname(__file__), "..", save_dir)
+                fpga_results_dir = self._ensure_fpga_results_dir(save_dir)
+                artifacts = self._find_fpga_artifacts(save_path)
+                if artifacts:
+                    logger.info("Found FPGA programming artifacts:\n" + "\n".join(artifacts))
+                    copied_artifacts = self._copy_fpga_artifacts_to_tmp_results(artifacts, save_dir)
+                    logger.info(
+                        "Copied FPGA programming artifacts to tmp parse_results directory:\n" +
+                        "\n".join(copied_artifacts)
+                    )
+                else:
+                    logger.warning(
+                        "FPGA bitstream mode completed but no FPGA artifacts were found under the run directory. "
+                        "Created empty FPGA results directory at " + fpga_results_dir + ". "
+                        "Check vitis_hls.log and export settings in the generated Tcl script."
+                    )
         else:
             logger.info("Skipping Vitis")
         self.checkpoint_controller.check_end_checkpoint("vitis", self.iteration_count)
         os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        if generate_fpga_bitstream and not setup:
+            logger.info("FPGA bitstream mode enabled: skipping Vitis netlist/schedule parsing.")
+            return
         # PARSE OUTPUT, set schedule and read netlist
         self.parse_vitis_data(save_dir=save_dir)
         
@@ -926,6 +1044,10 @@ class Codesign:
         else:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
+
+        if self.cfg["args"].get("generate_FPGA_bitstream", False) and self.hls_tool == "vitis":
+            logger.info("FPGA bitstream mode enabled: stopping after Vitis forward pass.")
+            return
 
         # calculate wire parasitics 
         # NOTE: we don't check the checkpoint status here because it is handled in the function call (see run_openroad variable)
@@ -1281,6 +1403,18 @@ class Codesign:
 
     def execute(self, num_iters):
         self.iteration_count = 0
+
+        if self.cfg["args"].get("generate_FPGA_bitstream", False):
+            if self.hls_tool != "vitis":
+                raise ValueError("--generate_FPGA_bitstream is only supported with --hls_tool vitis")
+            logger.info("FPGA bitstream mode enabled: running setup and one forward pass, then stopping after bitstream generation.")
+            self.setup()
+            self.checkpoint_controller.check_end_checkpoint("setup", self.iteration_count)
+            self.forward_pass(self.iteration_count, self.benchmark_dir)
+            self.cleanup()
+            print(FPGA_BITSTREAM_SUCCESS_MSG)
+            return
+
         self.setup()
         self.checkpoint_controller.check_end_checkpoint("setup", self.iteration_count)
         while self.iteration_count < num_iters:
@@ -1414,6 +1548,12 @@ if __name__ == "__main__":
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
+    parser.add_argument(
+        "--generate_FPGA_bitstream",
+        action="store_true",
+        default=None,
+        help="run full Vitis flow for FPGA artifact generation and stop after forward pass",
+    )
     args = parser.parse_args()
 
     main(args)

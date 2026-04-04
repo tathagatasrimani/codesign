@@ -23,6 +23,11 @@ Add configs to a yaml file in test/additional_configs. The codesign framework wi
 To see more options on how to run the codesign flow, please run:
 run_codesign -h
 
+To run only the Vitis forward pass and stop after FPGA artifact generation, use:
+run_codesign --config <desired_config> --generate_FPGA_bitstream
+
+In this mode, the flow skips netlist parsing, scheduling, OpenROAD, and inverse-pass optimization after Vitis completes.
+
 ## Running with checkpoints:
 For debug purposes, you may not want to run the entire flow each time. To help, you can save a checkpoint (transfer contents of src/tmp directory to separate save directory) and load it back to src/tmp on your next run. You can do this through a few flags in src/yaml/codesign_cfg.yaml, or on the command line
 
