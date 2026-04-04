@@ -14,6 +14,9 @@ source full_env_start.sh (or .csh if you are using cshell)
 
 This sets environment variables so you can run the codesign flow. 
 
+If you only need the forward-pass pieces for DSE plus Vitis IP export (and want to skip OpenROAD/CACTI/Verilator setup and end-of-build auto-tests), use:
+source full_env_start_export_ip.sh
+
 ## Running the flow: 
 To run the codesign flow, run the following command from the codesign root directory: 
 run_codesign --config <desired_config>
