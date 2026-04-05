@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-GUI wrapper for full_env_start_export_ip_inside.sh.
+GUI wrapper for full_env_start_FPGA_inside.sh.
 Reuses the existing installer UI and behavior, but targets export-IP-only setup.
 """
 
@@ -13,7 +13,7 @@ from gui_install import InstallGUI
 class ExportIPInstallGUI(InstallGUI):
     def __init__(self):
         super().__init__()
-        self.main_script = self.script_dir / 'full_env_start_export_ip_inside.sh'
+        self.main_script = self.script_dir / 'full_env_start_FPGA_inside.sh'
         self.log_file = self.script_dir / 'build_codesign_export_ip.log'
         self.current_step = "Initializing export-IP setup..."
 

@@ -19,7 +19,7 @@ for arg in "$@"; do
 done
 
 if [[ $IS_SOURCED -eq 1 && $HAS_FULL_FLAG -eq 0 ]]; then
-    source full_env_start_export_ip_inside.sh "$@"
+    source full_env_start_FPGA_inside.sh "$@"
     return 0
 fi
 
@@ -54,4 +54,4 @@ LAST_CORE=$((TARGET_CORES - 1))
 CPU_LIST="0-${LAST_CORE}"
 
 echo "Restricting export-IP setup to $TARGET_CORES core(s) (taskset -c $CPU_LIST)"
-exec taskset -c "$CPU_LIST" bash full_env_start_export_ip_inside.sh "$@"
+exec taskset -c "$CPU_LIST" bash full_env_start_FPGA_inside.sh "$@"

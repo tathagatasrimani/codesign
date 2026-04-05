@@ -754,7 +754,7 @@ class Codesign:
         """
         self.vitis_top_function = self.benchmark_name if not self.cfg["args"]["pytorch"] and self.cfg["args"]["arch_opt_pipeline"] != "streamhls" else "forward"
         self.scalehls_pipeline = "hida-pytorch-dse-pipeline" if self.cfg["args"]["pytorch"] else "scalehls-dse-pipeline"
-        generate_fpga_bitstream = bool(self.cfg["args"].get("generate_FPGA_bitstream", False))
+        generate_fpga_bitstream = bool(self.cfg["args"].get("target_FPGA", False))
 
         # prep before running scalehls
         if self.cfg["args"]["arch_opt_pipeline"] == "scalehls":
@@ -1043,7 +1043,7 @@ class Codesign:
             self.vitis_forward_pass(save_dir=save_dir, iteration_count=iteration_count, setup=setup)
         if setup: return
 
-        if self.cfg["args"].get("generate_FPGA_bitstream", False) and self.hls_tool == "vitis":
+        if self.cfg["args"].get("target_FPGA", False) and self.hls_tool == "vitis":
             logger.info("FPGA bitstream mode enabled: stopping after Vitis forward pass.")
             return
 
@@ -1412,9 +1412,9 @@ class Codesign:
     def execute(self, num_iters):
         self.iteration_count = 0
 
-        if self.cfg["args"].get("generate_FPGA_bitstream", False):
+        if self.cfg["args"].get("target_FPGA", False):
             if self.hls_tool != "vitis":
-                raise ValueError("--generate_FPGA_bitstream is only supported with --hls_tool vitis")
+                raise ValueError("--target_FPGA is only supported with --hls_tool vitis")
             logger.info("FPGA bitstream mode enabled: running setup and one forward pass, then stopping after bitstream generation.")
             self.setup()
             self.checkpoint_controller.check_end_checkpoint("setup", self.iteration_count)
@@ -1556,7 +1556,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_power", type=float, help="maximum total power to allow")
     parser.add_argument("--solver", type=str, help="solver to use for inverse pass")
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
-    parser.add_argument("--generate_FPGA_bitstream", action="store_true", default=None, help="run full Vitis flow for FPGA artifact generation and stop after forward pass",)
+    parser.add_argument("--target_FPGA", action="store_true", default=None, help="run full Vitis flow for FPGA artifact generation and stop after forward pass",)
     args = parser.parse_args()
 
     main(args)
