@@ -5,8 +5,7 @@ Use this flow when you want FPGA export-IP generation from a clean install.
 ### Stanford / CMU Users
 
 1. From the `codesign` root, run `./gui_install_FPGA.py` to install the export-IP-only environment.
-2. If prompted, enter your sudo password. For a full setup, also provide your AMPL UUID when asked.
-    a. If you do not already have an AMPL UUID, you can acquire one at https://dev.ampl.com/ampl/free.html 
+2. If prompted, enter your sudo password. For a full setup, also provide your AMPL UUID when asked. If you do not already have an AMPL UUID, you can acquire one at https://dev.ampl.com/ampl/free.html 
 3. After installation completes, open a new terminal and run `source full_env_start_FPGA.sh`.
 4. Run the flow with FPGA target mode enabled:
 
