@@ -10,6 +10,7 @@ SETUP_SCRIPTS_FOLDER="$(pwd)/setup_scripts"
 BUILD_LOG="$SETUP_SCRIPTS_FOLDER/build_export_ip.log"
 FORCE_FULL=0
 USE_MAX_PARALLEL=0
+THIRD_PARTY_INSTALL=0
 MAX_PARALLEL_CORES=24
 
 # Start timer
@@ -43,6 +44,8 @@ for arg in "$@"; do
         FORCE_FULL=1
     elif [[ "$arg" == "--max_parallel_install" ]]; then
         USE_MAX_PARALLEL=1
+    elif [[ "$arg" == "--third_party_install" ]]; then
+        THIRD_PARTY_INSTALL=1
     elif [[ "$arg" == "--skip-openroad" ]]; then
         echo "--skip-openroad ignored: OpenROAD is always skipped in export-IP setup."
     fi
@@ -143,27 +146,34 @@ echo "Thank you for entering your sudo password if prompted."
 
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
-host=$(hostname)
-
-if [[ "$host" == *stanford* ]]; then
-    export UNIVERSITY="stanford"
-elif [[ "$host" == *cmu* ]]; then
-    export UNIVERSITY="cmu"
+if [[ $THIRD_PARTY_INSTALL -eq 1 ]]; then
+    export UNIVERSITY="third_party"
 else
-    echo "Hostname is '$host' and does not contain 'stanford' or 'cmu'."
-    read -p "Please pick your university (stanford/cmu): " choice
-    case "$choice" in
-        stanford|Stanford|STANFORD)
-            export UNIVERSITY="stanford"
-            ;;
-        cmu|CMU|Cmu)
-            export UNIVERSITY="cmu"
-            ;;
-        *)
-            echo "Invalid choice. Exiting."
-            exit 1
-            ;;
-    esac
+    host=$(hostname)
+
+    if [[ "$host" == *stanford* ]]; then
+        export UNIVERSITY="stanford"
+    elif [[ "$host" == *cmu* ]]; then
+        export UNIVERSITY="cmu"
+    else
+        echo "Hostname is '$host' and does not contain 'stanford' or 'cmu'."
+        read -p "Please pick your university (stanford/cmu/third_party): " choice
+        case "$choice" in
+            stanford|Stanford|STANFORD)
+                export UNIVERSITY="stanford"
+                ;;
+            cmu|CMU|Cmu)
+                export UNIVERSITY="cmu"
+                ;;
+            third_party|THIRD_PARTY|Third_party)
+                export UNIVERSITY="third_party"
+                ;;
+            *)
+                echo "Invalid choice. Exiting."
+                exit 1
+                ;;
+        esac
+    fi
 fi
 
 # Persist university selection for run-time setup script selection in codesign
