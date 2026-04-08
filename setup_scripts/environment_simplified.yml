@@ -49,6 +49,7 @@ dependencies:
   - make
   - git
   - help2man
+  - lld
 
   # --- ML stacks ---
   - pytorch=2.1.*                # CPU build; add CUDA toolkit if needed
