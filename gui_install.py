@@ -32,6 +32,9 @@ class InstallGUI:
         self.script_dir = Path(__file__).parent.absolute()
         self.main_script = self.script_dir / 'full_env_start_inside.sh'
         self.log_file = self.script_dir / 'build_codesign.log'
+        self.gui_start_triggers = [
+            "Thank you for entering your sudo password if prompted.",
+        ]
         
         self.current_step = "Initializing..."
         self.last_lines = []
@@ -144,8 +147,6 @@ class InstallGUI:
         if not self.process:
             return
         
-        trigger_line = "Thank you for entering your sudo password if prompted."
-        
         # Open log file for appending
         with open(self.log_file, 'a', encoding='utf-8', errors='replace') as log_f:
             # Write header
@@ -168,9 +169,11 @@ class InstallGUI:
                     if not self.gui_started:
                         print(line)
                         sys.stdout.flush()
-                        
-                        # Check if we've seen the trigger line
-                        if trigger_line in line:
+
+                        # Start GUI after an expected trigger line, or at first build step.
+                        trigger_hit = any(trigger in line for trigger in self.gui_start_triggers)
+                        first_step_seen = self.extract_step(line) is not None
+                        if trigger_hit or first_step_seen:
                             self.gui_started = True
                             # Clear screen and start GUI
                             os.system('clear' if os.name != 'nt' else 'cls')
