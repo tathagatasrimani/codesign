@@ -15,6 +15,10 @@ class ExportIPInstallGUI(InstallGUI):
         super().__init__()
         self.main_script = self.script_dir / 'full_env_start_FPGA_inside.sh'
         self.log_file = self.script_dir / 'build_codesign_export_ip.log'
+        self.gui_start_triggers = [
+            "FPGA export-IP setup will run without sudo.",
+            "Thank you for entering your sudo password if prompted.",
+        ]
         self.current_step = "Initializing export-IP setup..."
 
 

@@ -103,46 +103,19 @@ if [[ $FORCE_FULL -eq 1 ]]; then
     prompt_and_store_ampl_uuid
 fi
 
-################## SUDO PASSWORD PROMPT ##################
+################## NO-SUDO POLICY FOR FPGA SETUP ##################
 
-SUDO_KEEPALIVE_PID=""
+# FPGA export-IP setup is intentionally user-space only.
+# Helper scripts must not request or depend on sudo in this flow.
+export FPGA_NO_SUDO_INSTALL=1
+echo "FPGA export-IP setup will run without sudo."
 
-stop_sudo_keepalive() {
-    if [[ -n "$SUDO_KEEPALIVE_PID" ]] && kill -0 "$SUDO_KEEPALIVE_PID" >/dev/null 2>&1; then
-        kill "$SUDO_KEEPALIVE_PID" >/dev/null 2>&1 || true
-        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
-    fi
+# Guard against accidental sudo calls in downstream sourced scripts.
+sudo() {
+    echo "[no-sudo] sudo is disabled for FPGA export-IP setup."
+    return 1
 }
-
-start_sudo_keepalive() {
-    local keepalive_seconds=28800
-    (
-        local started_at current_epoch
-        started_at=$(date +%s)
-        while true; do
-            sleep 60
-            sudo -n -v >/dev/null 2>&1 || exit 0
-            current_epoch=$(date +%s)
-            if (( current_epoch - started_at >= keepalive_seconds )); then
-                exit 0
-            fi
-        done
-    ) &
-    SUDO_KEEPALIVE_PID=$!
-    trap stop_sudo_keepalive EXIT
-}
-
-# Full export-IP setup may need sudo for dependency installs in helper scripts.
-if [[ $FORCE_FULL -eq 1 ]]; then
-    echo "SUDO permissions may be required for this export-IP setup. Enter SUDO password if prompted."
-    sudo -v
-    start_sudo_keepalive
-    echo "SUDO permissions will be refreshed for up to 8 hours during this setup."
-else
-    echo "Incremental export-IP setup selected; SUDO likely not required."
-fi
-
-echo "Thank you for entering your sudo password if prompted."
+export -f sudo
 
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
@@ -212,13 +185,8 @@ echo "STARTING STEP 1: OPENROAD INSTALLATION"
 echo "Skipping OpenROAD installation in export-IP setup."
 echo "COMPLETED STEP 1: OPENROAD INSTALLATION"
 
-################## SET UP SCALEHLS ##################
-echo "STARTING STEP 2: SCALEHLS SETUP"
-source "$SETUP_SCRIPTS_FOLDER/scale_hls_setup.sh" "$FORCE_FULL"
-echo "COMPLETED STEP 2: SCALEHLS SETUP"
-
 ################### SET UP CONDA ENVIRONMENT ##################
-echo "STARTING STEP 3: CONDA ENVIRONMENT SETUP"
+echo "STARTING STEP 2: CONDA ENVIRONMENT SETUP"
 if [[ -d "miniconda3" ]]; then
     export PATH="$(pwd):$PATH"
     source miniconda3/etc/profile.d/conda.sh
@@ -246,7 +214,19 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 fi
 
 conda activate codesign
-echo "COMPLETED STEP 3: CONDA ENVIRONMENT SETUP"
+
+# Install lld in user-space for FPGA flow when not already available.
+if ! command -v lld >/dev/null 2>&1; then
+    echo "lld not found in PATH; installing into conda env 'codesign' (no sudo)."
+    conda install -n codesign -c conda-forge lld -y
+fi
+echo "COMPLETED STEP 2: CONDA ENVIRONMENT SETUP"
+
+################## SET UP SCALEHLS ##################
+echo "STARTING STEP 3: SCALEHLS SETUP"
+export SCALEHLS_SKIP_SYSTEM_DEPS=1
+source "$SETUP_SCRIPTS_FOLDER/scale_hls_setup.sh" "$FORCE_FULL"
+echo "COMPLETED STEP 3: SCALEHLS SETUP"
 
 ################ SET UP STREAMHLS ##################
 echo "STARTING STEP 4: STREAMHLS SETUP"
