@@ -36,12 +36,13 @@ if [[ $FORCE_FULL -eq 1 ]]; then
 
     # --- Ensure lld is available ---
     if ! command -v lld >/dev/null 2>&1; then
-        if [[ "${SCALEHLS_SKIP_SYSTEM_DEPS:-0}" == "1" || "${FPGA_NO_SUDO_INSTALL:-0}" == "1" ]]; then
-            echo "[setup] lld not found; skipping system install (no-sudo mode)."
-            echo "[setup] Please install lld in user space or make it available in PATH."
-        else
-            echo "[setup] Installing lld..."
-            sudo yum install -y lld
+        echo "[setup] lld not found; attempting user-space install without sudo."
+        if command -v conda >/dev/null 2>&1; then
+            conda install -n codesign -c conda-forge lld -y || true
+        fi
+        if ! command -v lld >/dev/null 2>&1; then
+            echo "[setup] Unable to locate lld after non-sudo install attempt."
+            echo "[setup] Please install lld in user space or ensure it is in PATH."
         fi
     else
         echo "[setup] lld already installed."

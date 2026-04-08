@@ -107,6 +107,13 @@ fi
 export FPGA_NO_SUDO_INSTALL=1
 echo "FPGA export-IP setup will run without sudo."
 
+# Guard against accidental sudo calls in downstream sourced scripts.
+sudo() {
+    echo "[no-sudo] sudo is disabled for FPGA export-IP setup."
+    return 1
+}
+export -f sudo
+
 ################## PARSE UNIVERSITY ARGUMENT ##################
 
 host=$(hostname)
