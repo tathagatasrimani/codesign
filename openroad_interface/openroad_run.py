@@ -197,8 +197,17 @@ class OpenRoadRun:
         # node_to_macro has: node_name -> [macro_lef_name, {input: [...], output: [...], ...}]
         node_to_macro_name = {node: info[0] for node, info in node_to_macro.items()}
 
-        # Compute core area from the TCL file
+        # Core from TCL. Die: prefer DEF (what OpenROAD loads); TCL can drift if results
+        # were partially refreshed or copied between runs.
         core_area = self._read_core_area_from_tcl()
+        tcl_die = self._read_die_area_from_tcl()
+        die_area = self._read_die_area_from_def() or tcl_die
+        if die_area and tcl_die:
+            if any(abs(die_area[i] - tcl_die[i]) > 0.5 for i in range(4)):
+                logger.warning(
+                    "Die rectangle from first_generated.def differs from codesign_top.tcl "
+                    f"(def={die_area}, tcl={tcl_die}); using DEF for hierarchical die clamp."
+                )
 
         if core_area is not None and len(macro_size_dict) > 0:
             # Build the FU-level subgraph (only nodes that have LEF macros)
@@ -211,7 +220,7 @@ class OpenRoadRun:
 
             logger.info(
                 f"Hierarchical placer macros={macro_count}, "
-                f"core_area={core_area}"
+                f"core_area={core_area}, die_area={die_area}"
             )
 
             placer = HierarchicalPlacer(
@@ -219,6 +228,7 @@ class OpenRoadRun:
                 macro_size_dict=macro_size_dict,
                 node_to_macro_name=node_to_macro_name,
                 core_area=core_area,
+                die_area=die_area,
             )
             positions = placer.place()
 
@@ -284,7 +294,70 @@ class OpenRoadRun:
         except Exception as e:
             logger.warning(f"Failed to read core area from TCL: {e}")
         return None
-    
+
+    def _read_die_area_from_tcl(self):
+        """
+        Read die_area from codesign_top.tcl (microns), same pattern as core.
+        Returns None if not found.
+        """
+        tcl_path = os.path.join(self.directory, "tcl", "codesign_top.tcl")
+        try:
+            with open(tcl_path, "r") as f:
+                for line in f:
+                    if "set die_area" in line:
+                        import re as _re
+                        match = _re.search(
+                            r"\{([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\}", line
+                        )
+                        if match:
+                            return (
+                                float(match.group(1)),
+                                float(match.group(2)),
+                                float(match.group(3)),
+                                float(match.group(4)),
+                            )
+        except Exception as e:
+            logger.warning(f"Failed to read die area from TCL: {e}")
+        return None
+
+    def _read_die_area_from_def(self):
+        """
+        Read DIEAREA from results/first_generated.def in microns.
+
+        This matches the geometry OpenROAD uses after read_def. Prefer over TCL when
+        codesign_top.tcl and the DEF on disk are out of sync (e.g. stale TCL).
+        """
+        def_path = os.path.join(self.directory, "results", "first_generated.def")
+        try:
+            with open(def_path, "r") as f:
+                content = f.read()
+        except OSError as e:
+            logger.warning(f"Could not read DEF for die area: {def_path}: {e}")
+            return None
+        m_u = re.search(
+            r"UNITS\s+DISTANCE\s+MICRONS\s+([\d.]+)\s*;",
+            content,
+            re.IGNORECASE,
+        )
+        if not m_u:
+            logger.warning("No UNITS DISTANCE MICRONS in first_generated.def; cannot parse die.")
+            return None
+        dbu_per_micron = float(m_u.group(1))
+        m_d = re.search(
+            r"DIEAREA\s*\(\s*([\d.]+)\s+([\d.]+)\s*\)\s*\(\s*([\d.]+)\s+([\d.]+)\s*\)\s*;",
+            content,
+        )
+        if not m_d:
+            logger.warning("No DIEAREA in first_generated.def.")
+            return None
+        x1, y1, x2, y2 = (
+            float(m_d.group(1)) / dbu_per_micron,
+            float(m_d.group(2)) / dbu_per_micron,
+            float(m_d.group(3)) / dbu_per_micron,
+            float(m_d.group(4)) / dbu_per_micron,
+        )
+        return (x1, y1, x2, y2)
+
     def update_clock_period(self, sdc_file: str):
         """
         Updates the clock period in the SDC file.
