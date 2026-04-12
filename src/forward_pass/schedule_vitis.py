@@ -824,11 +824,13 @@ class BasicBlockInfo:
         return loop_objects
 
 class vitis_schedule_parser:
-    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period, allowed_functions):
+    def __init__(self, build_dir, benchmark_name, top_level_module_name, clk_period, allowed_functions, latency, energy):
         self.build_dir = build_dir
         self.solution_dir = os.path.join(build_dir, benchmark_name, "solution1/.autopilot/db")
         self.clk_period = clk_period
         self.top_level_module_name = top_level_module_name
+        self.latency = latency
+        self.energy = energy
         self.basic_blocks = {}
         # Create a shared InterfaceDB instance for all basic blocks
         self.interface_db = InterfaceDB()
@@ -874,31 +876,74 @@ class vitis_schedule_parser:
                 # split into subtrees; edp is checked relative to branches - 
                 # only 1 type of functional unit on each subtree
 
-                # todo - as simple paths or as subtrees?
-                std_dfg_wire_ops = nx.read_gml(self.dfg.G_standard_with_wire_ops, f"{self.build_dir}/parse_results/{self.basic_block_name}/{self.basic_block_name}_graph_standard_with_wire_ops.gml")
+                std_dfg_wire_ops = nx.read_gml(f"{self.basic_blocks[basic_block_name].build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard_with_wire_ops.gml")
+                nx.write_gml(std_dfg_wire_ops, f"{self.basic_blocks[basic_block_name].build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard_with_wire_ops_unopt.gml")
                 # dfs_edges = list(nx.dfs_edges(std_dfg_wire_ops, source=0))
-                dfs_edges = list(nx.dfs_labeled_edges(std_dfg_wire_ops, source=0))
-                dfs_subtrees = {}
+                dfs_edges = list(nx.dfs_labeled_edges(std_dfg_wire_ops))
+                nodes = std_dfg_wire_ops.nodes(data=True)
+                dfs_subtrees = []
                 curr_start = 0
                 curr_latency = 0
-                curr_power = 0
-                dfs_subtree_funct_units = {}
+                curr_energy = 0
+                dfs_subtree_funct_units_count = {}
+                units = sim_util.get_var_module_map()
+                # print(dfs_edges)
+                # print(list(nx.dfs_edges(std_dfg_wire_ops)))
+                # print(nodes)
                 for i in range(len(dfs_edges)):
                     edge = dfs_edges[i]
-                    # add power and latency
-                    # add funct unit to subtree funct unit count if has pipeline vers
+                    node = nodes[edge[0]]
+                    if (node['node_type'] == "op"):
+                        if (node['function'] in units.keys()):
+                            # add energy and latency
+                            # add funct unit to subtree funct unit count
+                            curr_latency += self.latency[node['function']] * self.clk_period
+                            curr_energy += self.energy[node['function']]
+                            dfs_subtree_funct_units_count[node['function']] = dfs_subtree_funct_units_count.get(node['function'], 0) + 1
 
                     if edge[2] == "reverse":
-                        # store curr power, latency, and subtree
+                        # store curr energy, latency, and subtree
                         # also store list/count of funct units 
-                        dfs_subtrees.append([dfs_edges[curr_start:i], curr_power, curr_latency, dfs_subtree_funct_units])
+                        dfs_subtrees.append([dfs_edges[curr_start:i], curr_energy, curr_latency, dfs_subtree_funct_units_count])
                         curr_start = i
-                dfs_subtrees.append([dfs_edges[curr_start:], curr_power, curr_latency, dfs_subtree_funct_units])
-                # add power and latency for last subtree
+                dfs_subtrees.append([dfs_edges[curr_start:], curr_energy, curr_latency, dfs_subtree_funct_units_count])
+                # add energy and latency for last subtree
+
+                dict_remap_nodes = {}
 
                 # iter through list of subtrees and attempt to optimise edp via funct unit changes
                 for subtree in dfs_subtrees:
-                    pass
+                    remap = {}
+                    for unit_key in subtree[3].keys(): # for each type of funct unit in subtree
+                        overall_e = subtree[1] 
+                        overall_lat = subtree[2]
+                        init_lat = self.latency[unit_key] * self.clk_period 
+                        init_e = self.energy[unit_key]
+                        edps = []
+                        for var_unit in units[unit_key]: # for each variation on the funct unit 
+                            new_edp = (overall_e - init_e + self.energy[var_unit["name"]]) * (overall_lat - init_lat + self.latency[var_unit["name"]] * self.clk_period)
+                            edps.append(new_edp)
+                        
+                        remap[unit_key] = units[unit_key][edps.index(min(edps))]["name"]
+                        print(edps)
+                    
+                    print(remap)
+                    # print(subtree)
+                    # print([edge[:2] for edge in subtree[0]])
+                    # print(set(node for node in [edge[:2] for edge in subtree[0]]))
+                    # subtree_nodes = set(node for node in [edge[:2] for edge in subtree[0]])
+                    subgraph = std_dfg_wire_ops.edge_subgraph([edge[:2] for edge in subtree[0]]).copy()
+                    subtree_nodes = subgraph.nodes(data=True)
+                    print(subtree_nodes)
+                    print(std_dfg_wire_ops.nodes(data=True))
+                    
+                    for node_tuple in subtree_nodes:
+                        node = node_tuple[1]
+                        if (node['node_type'] == "op"):
+                            dict_remap_nodes[node_tuple[0]] = remap.get(node['function'], node['function'])
+                    
+                nx.set_node_attributes(std_dfg_wire_ops, dict_remap_nodes, "function")
+                nx.write_gml(std_dfg_wire_ops, f"{self.basic_blocks[basic_block_name].build_dir}/parse_results/{basic_block_name}/{basic_block_name}_graph_standard_with_wire_ops.gml")
 
 
         self.interface_db.create_json_obj()

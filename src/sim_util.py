@@ -515,14 +515,18 @@ def get_var_bw_module_map():
     return module_map
 
 
-def get_var_pipe_module_map():
+def get_var_module_map():
     module_map = {
-        "mulf": [{"name" : "Fpmul32", "clk_cycles" : 1}, 
-                {"name" : "Fpmul32_p2", "clk_cycles" : 2}, 
-                {"name" : "Fpmul32_p4", "clk_cycles" : 4}],
-        "fmul": [{"name" : "Fpmul32", "clk_cycles" : 1}, 
-                {"name" : "Fpmul32_p2", "clk_cycles" : 2}, 
-                {"name" : "Fpmul32_p4", "clk_cycles" : 4}],
+        
+        "Fpmul32": [{"name" : "Fpmul32"}, 
+                {"name" : "Fpmul32_p2"}, 
+                {"name" : "Fpmul32_p4"}],
+        # "Fpdiv32": [{"name" : "Fpdiv32"}, 
+        #         {"name" : "Fpdiv32_rx2"}, 
+        #         {"name" : "Fpdiv32_rx4"}],
+        # "Fpadd32": [{"name" : "Fpadd32"}, 
+        #         {"name" : "Fpadd32_p2"}, 
+        #         {"name" : "Fpadd32_p4"}],
     }
     return module_map
 
@@ -532,11 +536,11 @@ def map_operator_types(full_netlist, latency):
     """
     module_map = get_module_map()
     bw_module_map = get_var_bw_module_map()
-    pipe_cycles_map = get_module_pipe_cycles()
-    pipe_map = get_var_pipe_module_map()
-    node_list_pipe = []
-    tot_latency = 0
-    tot_pwr = 1
+    # pipe_cycles_map = get_module_pipe_cycles()
+    # pipe_map = get_var_pipe_module_map()
+    # node_list_pipe = []
+    # tot_latency = 0
+    # tot_pwr = 1
 
     for node in full_netlist:
         raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
@@ -576,11 +580,11 @@ def map_operator_types(full_netlist, latency):
         else:
             full_netlist.nodes[node]['function'] = raw_fn
 
-        if raw_fn in pipe_map:
-            for pipe_node in pipe_map[raw_fn]:
-                full_netlist.nodes[node]['function'] = {k: max(((tot_latency + latency[v])**2)*tot_pwr) for k, v in pipe_node.items()}
-        else:
-            tot_latency += pipe_map[raw_fn]
+        # if raw_fn in pipe_map:
+        #     for pipe_node in pipe_map[raw_fn]:
+        #         full_netlist.nodes[node]['function'] = {k: max(((tot_latency + latency[v])**2)*tot_pwr) for k, v in pipe_node.items()}
+        # else:
+        #     tot_latency += pipe_map[raw_fn]
         
     return full_netlist
 

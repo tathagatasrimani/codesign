@@ -508,7 +508,7 @@ class Codesign:
             assert latency is not None and dsp is not None, f"No latency or dsp found for {self.benchmark_name} in {log_file}"
             return dsp, latency
 
-    def parse_vitis_data(self, save_dir, latency):
+    def parse_vitis_data(self, save_dir):
 
         ## print the cwd
         print(f"Current working directory in vitis parse data: {os.getcwd()}")
@@ -557,7 +557,7 @@ class Codesign:
         if self.checkpoint_controller.check_checkpoint("schedule", self.iteration_count) and not self.max_rsc_reached:
             start_time = time.time()
             logger.info("Parsing Vitis schedule")
-            schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule)
+            schedule_parser = schedule_vitis.vitis_schedule_parser(save_dir, self.benchmark_name, self.vitis_top_function, self.clk_period, allowed_functions_schedule, self.hw.circuit_model.circuit_values["latency"], self.hw.circuit_model.circuit_values["dynamic_energy"])
             
             logger.info("Creating DFGs from Vitis CDFGs")
             schedule_parser.create_dfgs()

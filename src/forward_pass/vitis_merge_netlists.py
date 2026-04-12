@@ -30,7 +30,7 @@ class MergeNetlistsVitis:
 
         self.allowed_functions = allowed_functions
 
-    def merge_netlists_vitis(self, current_directory, top_level_module_name):
+    def merge_netlists_vitis(self, current_directory, top_level_module_name, latency):
         """
         Main function to create a unified netlist for all files in the given directory.
         """
@@ -45,7 +45,7 @@ class MergeNetlistsVitis:
         if top_level_module_name not in submodules:
             raise ValueError(f"Error: Top-level module {top_level_module_name} does not exist in {current_directory}.")
 
-        full_netlist = self.parse_module(current_directory, top_level_module_name)
+        full_netlist = self.parse_module(current_directory, top_level_module_name, latency)
         if full_netlist is None:
             raise ValueError(f"Error: Failed to parse the top-level module {top_level_module_name}.")
         
@@ -55,7 +55,7 @@ class MergeNetlistsVitis:
         #debug_print(f"Number of visited modules: {len(self.all_modules_visited)}")
 
         ## map the operator types in the netlist to standardized function names using module_map
-        full_netlist = sim_util.map_operator_types(full_netlist)
+        full_netlist = sim_util.map_operator_types(full_netlist, latency)
 
         ## save the unfiltered full netlist to a file
         output_file_path = os.path.join(current_directory, f"{top_level_module_name}_full_netlist_unfiltered.gml")
@@ -69,7 +69,7 @@ class MergeNetlistsVitis:
         output_filtered_file_path = os.path.join(current_directory, f"{top_level_module_name}_full_netlist.gml")
         nx.write_gml(filtered_netlist, output_filtered_file_path)
 
-    def parse_module(self, current_directory, current_module):
+    def parse_module(self, current_directory, current_module, latency):
 
         debug_print(f"!!!!!!!!!!!!!!!!!!!!!!!Parsing module for netlist merge: {current_module}")
 
@@ -128,7 +128,7 @@ class MergeNetlistsVitis:
 
         ## generate the netlists for each of the instantiated modules recursively
         for module_name in module_dependences:
-            self.parse_module(current_directory, module_name)
+            self.parse_module(current_directory, module_name, latency)
 
         all_cross_module_edges = set()
 
@@ -155,7 +155,7 @@ class MergeNetlistsVitis:
         #debug_print(f"Cross-module edges for module {current_module} saved to {cross_module_edges_file_path}")
 
         # write out a filtered and function mapped version of the netlist
-        final_netlist_new_ops = sim_util.map_operator_types(initial_netlist)
+        final_netlist_new_ops = sim_util.map_operator_types(initial_netlist, latency)
 
         # filter the netlist to only include desired node types and the call function nodes (we need these for hierarchy)
         allowed_functions = self.allowed_functions.copy()
