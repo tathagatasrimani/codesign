@@ -458,6 +458,8 @@ class ObjectiveEvaluator:
                         log_info(f"ram_recurrences: {ram_recurrences} for loop {loop_name}")
                         recurrence_II = 0
                         crit_path = None
+                        crit_path_latency_cycles = None
+                        crit_path_ram_depth = None
                         for mem_name, recurrence_info in ram_recurrences.items():
                             path_latency = 0
                             for path_node in recurrence_info["path"]:
@@ -471,12 +473,31 @@ class ObjectiveEvaluator:
                             if candidate_II > recurrence_II:
                                 recurrence_II = candidate_II
                                 crit_path = recurrence_info["path"]
+                                crit_path_latency_cycles = path_latency
+                                crit_path_ram_depth = ram_depth
                             log_info(f"recurrence_II: {candidate_II} for store node {store_node} (mem {mem_name}) with ram depth {ram_depth}")
 
                         II_cycles = max(resource_II, recurrence_II)
                         pred_delay = II_cycles * clk_period * (int(dfg.nodes[pred]["count"]) - 1)
                         log_info(f"II_delay: {pred_delay} for node {node} and pred {pred}")
                         pred_bd_delta["clk"] = pred_delay
+
+                        # Collect memory and FU instances on the critical recurrence path
+                        crit_path_memories = []
+                        crit_path_fus = []
+                        if crit_path:
+                            for path_node in crit_path:
+                                node_data = dfg.nodes[path_node]
+                                fn = node_data.get("function", "")
+                                if fn in _MEMORY_OPS:
+                                    mem = node_data.get("mem_name")
+                                    if mem and mem not in crit_path_memories:
+                                        crit_path_memories.append(mem)
+                                elif fn not in ("Wire", "Call", "N/A", ""):
+                                    rsc = node_data.get("rsc") or node_data.get("name")
+                                    if rsc and rsc not in crit_path_fus:
+                                        crit_path_fus.append(rsc)
+
                         self.loop_ii_info[loop_name] = {
                             "II": II_cycles,
                             "resource_II": resource_II,
@@ -484,6 +505,11 @@ class ObjectiveEvaluator:
                             "delay_1x_ns": delay_1x,
                             "bottleneck": "resource" if resource_II >= recurrence_II else "recurrence",
                             "critical_recurrence_path": crit_path,
+                            "critical_recurrence_latency_cycles": crit_path_latency_cycles,
+                            "critical_recurrence_latency_ns": crit_path_latency_cycles * clk_period if crit_path_latency_cycles is not None else None,
+                            "critical_recurrence_ram_depth": crit_path_ram_depth,
+                            "critical_recurrence_memories": crit_path_memories if crit_path_memories else None,
+                            "critical_recurrence_fus": crit_path_fus if crit_path_fus else None,
                         }
                     else:
                         pred_delay = sim_util.xreplace_safe(
@@ -616,7 +642,14 @@ class ObjectiveEvaluator:
         if op_type not in self.gamma:
             return 0.0
         delay, _, _, _ = self._get_fu_params(op_type, node_data)
-        return math.ceil(self.gamma[op_type] * delay)
+        comb_delay = self.gamma[op_type] * delay
+        tv = self.tech_model.base_params.tech_values
+        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, tv)
+        dff_delay = sim_util.xreplace_safe(self.DFF_DELAY, tv)
+        useful = clk_period - dff_delay
+        if useful > 0:
+            return comb_delay * clk_period / useful
+        return comb_delay
 
     def _count_ops(self) -> tuple:
         """Count total logic and memory operations across all scheduled DFGs.
@@ -795,9 +828,10 @@ class ObjectiveEvaluator:
         clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period,
                                              self.tech_model.base_params.tech_values)
 
-        lat_cycles = math.ceil(self.gamma[function] * delay)
-        if clk_period > 0:
-            pipeline_cost = DATA_WIDTH * DFF_ENERGY * (lat_cycles / clk_period)
+        dff_delay = sim_util.xreplace_safe(self.DFF_DELAY, self.tech_model.base_params.tech_values)
+        useful = clk_period - dff_delay
+        if useful > 0:
+            pipeline_cost = DATA_WIDTH * DFF_ENERGY * (self.gamma[function] * delay / useful)
         else:
             pipeline_cost = 0.0
 
@@ -922,9 +956,10 @@ class ObjectiveEvaluator:
         clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period,
                                              self.tech_model.base_params.tech_values)
 
-        lat_cycles = math.ceil(self.gamma.get(function, 0) * delay)
-        if clk_period > 0:
-            pipeline_cost = DATA_WIDTH * DFF_PASSIVE_POWER * (lat_cycles / clk_period)
+        dff_delay = sim_util.xreplace_safe(self.DFF_DELAY, self.tech_model.base_params.tech_values)
+        useful = clk_period - dff_delay
+        if useful > 0:
+            pipeline_cost = DATA_WIDTH * DFF_PASSIVE_POWER * (self.gamma.get(function, 0) * delay / useful)
         else:
             pipeline_cost = 0.0
 

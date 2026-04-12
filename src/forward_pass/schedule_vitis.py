@@ -428,6 +428,7 @@ class DataFlowGraph:
                         "depth": read_mems[loop_name][mem_name][0][1]
                     }
                     result[loop_name][mem_name] = res_dict
+                    logger.info(f"Path found between {read_mems[loop_name][mem_name][0][0]} and {write_nodes[loop_name][mem_name][0][0]}")
                 else:
                     logger.info(f"No path found between {read_mems[loop_name][mem_name][0][0]} and {write_nodes[loop_name][mem_name][0][0]}")
         return result

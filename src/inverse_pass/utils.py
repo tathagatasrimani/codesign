@@ -1,3 +1,4 @@
+import math
 import os
 import glob
 import pickle
@@ -91,7 +92,9 @@ def plot_2d_scatter(
     obj_type: str = "Objective",
     output_dir: str = None,
     eps: float = 1e-30,
-    log_scale: bool = True
+    log_scale: bool = True,
+    log_obj_min: float = None,
+    log_obj_max: float = None,
 ):
     """
     Create a 2D scatter plot of two variables from design results.
@@ -149,10 +152,18 @@ def plot_2d_scatter(
         title_txt = f'SYSTEM {obj_type.upper()}'
         title_txt = title_txt.lower().title()
         cbar.set_label(title_txt, fontsize=18, labelpad=2, fontweight='bold')
-        cbar.set_ticks([0, 1])
-        cbar.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+        tick_positions = [0.0, 0.25, 0.5, 0.75, 1.0]
+        if log_obj_min is not None and log_obj_max is not None and log_obj_max > log_obj_min:
+            tick_labels = []
+            for t in tick_positions:
+                val = np.exp(log_obj_min + t * (log_obj_max - log_obj_min))
+                tick_labels.append(f'{val:.2e}')
+        else:
+            tick_labels = ['Best', '', '', '', 'Worst']
+        cbar.set_ticks(tick_positions)
+        cbar.set_ticklabels(tick_labels, fontweight='bold')
         cbar.ax.invert_yaxis()
-        cbar.ax.tick_params(labelsize=14)
+        cbar.ax.tick_params(labelsize=11)
 
     # Plot invalid results with black X markers
     if invalid_results:
@@ -697,9 +708,8 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     plt.close('all')
     plt.rcdefaults()
 
-    # Filter to only designs that satisfy constraints
-    #valid_results = [r for r in all_results if r.satisfies_constraints]
-    valid_results = all_results
+    # Filter to only designs with finite objective values (excludes degenerate dummy results)
+    valid_results = [r for r in all_results if math.isfinite(r.obj_value)]
 
     if not valid_results:
         logger.warning("No valid designs to visualize")
@@ -718,6 +728,7 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
 
     # Normalize objective values for coloring using log scale (0 = best, 1 = worst among top)
     obj_min, obj_max = min(obj_values), max(obj_values)
+    log_obj_min = log_obj_max = None
     if obj_max > obj_min:
         # Use log scale for normalization
         log_obj_values = [np.log(v + eps) for v in obj_values]
@@ -746,7 +757,9 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
         obj_type=obj_type,
         output_dir=output_dir,
         eps=eps,
-        log_scale=True
+        log_scale=True,
+        log_obj_min=log_obj_min,
+        log_obj_max=log_obj_max,
     )
 
     # 3D: delay vs dynamic energy vs passive power
@@ -830,15 +843,20 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     y_min, y_max = int(np.floor(log_dynamic.min())), int(np.ceil(log_dynamic.max()))
     ax2.set_yticks(range(y_min, y_max + 1))
 
-    # Colorbar with BEST/WORST labels
+    # Colorbar with BEST/WORST labels and intermediate actual values
     title_txt = f'SYSTEM {obj_type.upper()}'
     title_txt = title_txt.lower().title()
     cbar2 = fig2.colorbar(scatter2, ax=ax2, shrink=0.6, pad=0.02, aspect=25)
     cbar2.set_label(title_txt, fontsize=14, labelpad=2, fontweight='bold')
-    cbar2.set_ticks([0, 1])
-    cbar2.set_ticklabels(['Best', 'Worst'], fontweight='bold')
+    tick_positions = [0.0, 0.25, 0.5, 0.75, 1.0]
+    if log_obj_min is not None and log_obj_max is not None and log_obj_max > log_obj_min:
+        tick_labels_3d = [f'{np.exp(log_obj_min + t * (log_obj_max - log_obj_min)):.2e}' for t in tick_positions]
+    else:
+        tick_labels_3d = ['Best', '', '', '', 'Worst']
+    cbar2.set_ticks(tick_positions)
+    cbar2.set_ticklabels(tick_labels_3d, fontweight='bold')
     cbar2.ax.invert_yaxis()
-    cbar2.ax.tick_params(labelsize=12)
+    cbar2.ax.tick_params(labelsize=10)
 
     # Mark the best valid design with a prominent star - plotted LAST with high zorder
     if best_valid_idx is not None:

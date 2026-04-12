@@ -21,7 +21,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from src.inverse_pass.constraint import Constraint
 
 from src import sim_util
-from src.hardware_model.objective_evaluator import ObjectiveEvaluator
+from src.hardware_model.objective_evaluator import ObjectiveEvaluator, DATA_WIDTH
 from src.inverse_pass.utils import DesignPointResult, visualize_top_designs
 
 
@@ -76,11 +76,24 @@ def _worker_basic_optimization_chunk(args_tuple):
 
     for idx, design_point in chunk:
         evaluator.set_params_from_design_point(design_point)
-        lower_clk_period = sim_util.xreplace_safe(tech_model.delay * 150, tech_model.base_params.tech_values)
-        upper_clk_period = sim_util.xreplace_safe(tech_model.delay * 5000, tech_model.base_params.tech_values)
+        #lower_clk_period = sim_util.xreplace_safe(tech_model.delay * 150, tech_model.base_params.tech_values)
+        #upper_clk_period = sim_util.xreplace_safe(tech_model.delay * 5000, tech_model.base_params.tech_values)
+        lower_clk_period = 5
+        upper_clk_period = 5
         clk_periods = np.logspace(np.log10(lower_clk_period), np.log10(upper_clk_period), 1)
         for clk_period in clk_periods:
             evaluator.set_clk_period(clk_period)
+
+            if (clk_period <= sim_util.xreplace_safe(evaluator.DFF_DELAY, evaluator.tech_model.base_params.tech_values)):
+                results.append(DesignPointResult(
+                    design_point=design_point,
+                    obj_value=math.inf,
+                    delay=0.0, dynamic_energy=0.0, leakage_power=0.0, total_power=math.inf,
+                    clk_period=clk_period, Ieff=0.0, Ioff=0.0, L=0.0, W=0.0, V_dd=0.0, V_th=0.0, tox=0.0,
+                    satisfies_constraints=False,
+                    constraint_violations={"dff_degenerate": 1.0},
+                ))
+                continue
 
             evaluator.calculate_objective()
 
@@ -125,11 +138,50 @@ def _worker_basic_optimization_chunk(args_tuple):
                 expanded_dp["memory"] = expanded_memory
             fu_logic_config = design_point.get("fu_logic", {})
             if fu_logic_config and evaluator.logic_unit_models:
+                tv = evaluator.tech_model.base_params.tech_values
+                clk_period_val = sim_util.xreplace_safe(evaluator.tech_model.base_params.clk_period, tv)
+                dff_delay_val = sim_util.xreplace_safe(evaluator.DFF_DELAY, tv)
+                dff_area_val = sim_util.xreplace_safe(evaluator.DFF_AREA, tv)
+                useful = clk_period_val - dff_delay_val
                 expanded_fu_logic = {}
                 for rsc_name, fu_idx in fu_logic_config.items():
                     if rsc_name in evaluator.logic_unit_models:
                         lum = evaluator.logic_unit_models[rsc_name]
-                        expanded_fu_logic[rsc_name] = {"index": fu_idx, "function": lum.function, **lum.get_design_point_row()}
+                        row = lum.get_design_point_row()
+                        comb_delay = evaluator.gamma.get(lum.function, 0) * lum.delay
+                        if useful > 0:
+                            delay_tot = comb_delay * clk_period_val / useful
+                        else:
+                            delay_tot = comb_delay
+                        num_stages = comb_delay / useful if useful > 0 else 0
+
+                        # Delay
+                        row["delay_comb"] = comb_delay
+                        row["delay_tot"] = delay_tot
+                        row["pipeline_overhead"] = delay_tot - comb_delay
+
+                        # Active energy
+                        energy_base = evaluator.alpha.get(lum.function, 0) * lum.E_act_inv
+                        energy_pipeline = DATA_WIDTH * 20 * lum.E_act_inv * num_stages
+                        row["energy_base"] = energy_base
+                        row["energy_tot"] = energy_base + energy_pipeline
+                        row["energy_pipeline_overhead"] = energy_pipeline
+
+                        # Passive power (leakage)
+                        leakage_base = evaluator.beta.get(lum.function, 0) * lum.P_pass_inv
+                        leakage_pipeline = DATA_WIDTH * 20 * lum.P_pass_inv * num_stages
+                        row["leakage_base"] = leakage_base
+                        row["leakage_tot"] = leakage_base + leakage_pipeline
+                        row["leakage_pipeline_overhead"] = leakage_pipeline
+
+                        # Area
+                        area_base = evaluator.area_coeffs.get(lum.function, 0) * (500/7) * lum.area
+                        area_pipeline = DATA_WIDTH * dff_area_val * num_stages
+                        row["area_base"] = area_base
+                        row["area_tot"] = area_base + area_pipeline
+                        row["area_pipeline_overhead"] = area_pipeline
+
+                        expanded_fu_logic[rsc_name] = {"index": fu_idx, "function": lum.function, **row}
                     else:
                         expanded_fu_logic[rsc_name] = {"index": fu_idx}
                 expanded_dp["fu_logic"] = expanded_fu_logic
@@ -190,7 +242,6 @@ class DesignSpaceNN:
     def __init__(self, X, n_components=3):
         from sklearn.preprocessing import StandardScaler
         from sklearn.decomposition import PCA
-        from sklearn.neighbors import NearestNeighbors
         X = np.asarray(X, dtype=float)
         self.scaler = StandardScaler().fit(X)
         Xs = self.scaler.transform(X)
@@ -199,7 +250,7 @@ class DesignSpaceNN:
         X_pca = self.pca.transform(Xs)
         self.lo = X_pca.min(axis=0)
         self.hi = X_pca.max(axis=0)
-        self.nn = NearestNeighbors(n_neighbors=1, algorithm='brute').fit(Xs)
+        self.Xs_train = Xs  # stored for numpy-based nearest-neighbor lookup
         self.n_components = n_components
         self.explained_variance_ratio_ = self.pca.explained_variance_ratio_
 
@@ -209,8 +260,8 @@ class DesignSpaceNN:
             for i in range(self.n_components)
         ]
         Xs_query = self.pca.inverse_transform([pca_vec])
-        _, idx = self.nn.kneighbors(Xs_query)
-        return int(idx[0][0])
+        dists_sq = np.sum((self.Xs_train - Xs_query) ** 2, axis=1)
+        return int(np.argmin(dists_sq))
 
 
 class Optimizer:
@@ -559,7 +610,6 @@ class Optimizer:
             batch_trials = []
             batch_dps = []
             for i in range(batch_size):
-                #t1 = time.time()
                 trial = study.ask()
                 logic_idx = logic_nn.suggest_and_lookup(trial, "logic")
                 group_indices = {
@@ -567,7 +617,6 @@ class Optimizer:
                     for gk in mem_group_nns
                 }
                 mem_indices = {name: group_indices[mem_to_group[name]] for name in memory_design_space}
-                #logger.info(f"Suggested memory indices after time: {time.time() - t1:.2f}s: {mem_indices}")
                 if fu_grouping == "shared" or not fu_logic_design_space:
                     fu_logic_indices = {rsc: logic_idx for rsc in fu_logic_design_space}
                 else:
@@ -579,13 +628,11 @@ class Optimizer:
                         rsc: fu_group_indices[rsc_to_fu_group[rsc]]
                         for rsc in fu_logic_design_space
                     }
-                #logger.info(f"Suggested FU logic indices after time: {time.time() - t1:.2f}s: {fu_logic_indices}")
                 dp = {
                     "logic": pareto_rows[logic_idx],
                     "memory": mem_indices,
                     "fu_logic": fu_logic_indices,
                 }
-                #logger.info(f"time taken to suggest trial {i} of {batch_size}: {time.time() - t1:.2f}s")
                 batch_trials.append(trial)
                 batch_dps.append(dp)
 
