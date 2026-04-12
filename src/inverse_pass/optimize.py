@@ -78,8 +78,8 @@ def _worker_basic_optimization_chunk(args_tuple):
         evaluator.set_params_from_design_point(design_point)
         #lower_clk_period = sim_util.xreplace_safe(tech_model.delay * 150, tech_model.base_params.tech_values)
         #upper_clk_period = sim_util.xreplace_safe(tech_model.delay * 5000, tech_model.base_params.tech_values)
-        lower_clk_period = 5
-        upper_clk_period = 5
+        lower_clk_period = 1
+        upper_clk_period = 1
         clk_periods = np.logspace(np.log10(lower_clk_period), np.log10(upper_clk_period), 1)
         for clk_period in clk_periods:
             evaluator.set_clk_period(clk_period)
@@ -774,8 +774,8 @@ class Optimizer:
         elif opt == "bayesian":
             return self.bayesian_optimization(
                 improvement, iteration,
-                n_trials=kwargs.get("n_trials", 500),
-                n_parallel=kwargs.get("n_parallel", 50),
+                n_trials=kwargs.get("n_trials", 1500),
+                n_parallel=kwargs.get("n_parallel", 250),
                 fu_grouping=kwargs.get("fu_grouping", "shared"),
                 mem_grouping=kwargs.get("mem_grouping", "by_capacity"),
                 sampler=kwargs.get("sampler", "qmc"),

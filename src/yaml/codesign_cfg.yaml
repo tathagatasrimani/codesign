@@ -37,8 +37,9 @@ default:
     leakage_restriction: False
     MUL_restriction: False
     fu_grouping: shared
-    mem_grouping: by_capacity
-    sampler: tpe
+    mem_grouping: independent
+    sampler: qmc
+    zero_logic_latencies: False
 
 
 vitis_test_mvs:

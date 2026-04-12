@@ -101,6 +101,7 @@ class ObjectiveEvaluator:
         mem_access_db: Dict[str, Any] = None,
         logic_unit_models: Dict[str, Any] = None,
         ram_recurrences: Dict[str, Any] = None,
+        zero_logic_latencies: bool = False,
     ):
         """
         Initialize the ObjectiveEvaluator.
@@ -138,6 +139,7 @@ class ObjectiveEvaluator:
         self.mem_access_db = mem_access_db or {}
         self.logic_unit_models = logic_unit_models or {}
         self.ram_recurrences = ram_recurrences or {}
+        self.zero_logic_latencies = zero_logic_latencies
         self.first_write_times = {}
         self.first_write_blocks = {}
         self.last_read_times = {}
@@ -211,6 +213,7 @@ class ObjectiveEvaluator:
             mem_access_db=hw.mem_access_db,
             logic_unit_models=hw.logic_unit_models,
             ram_recurrences=hw.ram_recurrences,
+            zero_logic_latencies=hw.cfg["args"].get("zero_logic_latencies", False),
         )
 
     def set_params_from_design_point(self, design_point: Dict[str, Any]):
@@ -477,7 +480,29 @@ class ObjectiveEvaluator:
                                 crit_path_ram_depth = ram_depth
                             log_info(f"recurrence_II: {candidate_II} for store node {store_node} (mem {mem_name}) with ram depth {ram_depth}")
 
-                        II_cycles = max(resource_II, recurrence_II)
+                        # Memory port constraint: II >= ceil(mem_latency_cycles / max_requests_in_flight)
+                        memory_port_II = 0
+                        critical_memory_port = None
+                        loop_1x_graph = self.loop_1x_graphs[loop_name][True]
+                        for ln, ld in loop_1x_graph.nodes(data=True):
+                            fn = ld.get("function", "")
+                            if fn not in _MEMORY_OPS:
+                                continue
+                            mn = ld.get("mem_name")
+                            if not mn or mn not in self.memory_models:
+                                continue
+                            mm = self.memory_models[mn]
+                            if mm.max_requests_in_flight <= 0:
+                                continue
+                            lat_ns = mm.cacheHitLatency_ns if fn in _MEMORY_READ_OPS else mm.cacheWriteLatency_ns
+                            lat_cycles = math.ceil(lat_ns / clk_period) if clk_period > 0 else 0
+                            candidate = math.ceil(lat_cycles / mm.max_requests_in_flight)
+                            if candidate > memory_port_II:
+                                memory_port_II = candidate
+                                critical_memory_port = mn
+
+                        effective_resource_II = max(resource_II, memory_port_II)
+                        II_cycles = max(effective_resource_II, recurrence_II)
                         pred_delay = II_cycles * clk_period * (int(dfg.nodes[pred]["count"]) - 1)
                         log_info(f"II_delay: {pred_delay} for node {node} and pred {pred}")
                         pred_bd_delta["clk"] = pred_delay
@@ -498,12 +523,23 @@ class ObjectiveEvaluator:
                                     if rsc and rsc not in crit_path_fus:
                                         crit_path_fus.append(rsc)
 
+                        if recurrence_II > effective_resource_II:
+                            bottleneck = "recurrence"
+                            critical_resource = None
+                        elif memory_port_II >= resource_II:
+                            bottleneck = "resource"
+                            critical_resource = critical_memory_port
+                        else:
+                            bottleneck = "resource"
+                            critical_resource = "loop_body"
+
                         self.loop_ii_info[loop_name] = {
                             "II": II_cycles,
-                            "resource_II": resource_II,
+                            "resource_II": effective_resource_II,
                             "recurrence_II": recurrence_II,
                             "delay_1x_ns": delay_1x,
-                            "bottleneck": "resource" if resource_II >= recurrence_II else "recurrence",
+                            "bottleneck": bottleneck,
+                            "critical_resource": critical_resource,
                             "critical_recurrence_path": crit_path,
                             "critical_recurrence_latency_cycles": crit_path_latency_cycles,
                             "critical_recurrence_latency_ns": crit_path_latency_cycles * clk_period if crit_path_latency_cycles is not None else None,
@@ -640,6 +676,8 @@ class ObjectiveEvaluator:
                 op_type = "Register16"
 
         if op_type not in self.gamma:
+            return 0.0
+        if self.zero_logic_latencies:
             return 0.0
         delay, _, _, _ = self._get_fu_params(op_type, node_data)
         comb_delay = self.gamma[op_type] * delay

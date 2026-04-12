@@ -88,6 +88,8 @@ class MemoryModel:
         else:
             self.pareto_df = None
 
+        self.max_requests_in_flight = memory_info.get("max_requests_in_flight", 100)
+
         self._design_point_index = 0
         self._metric_columns = []
 

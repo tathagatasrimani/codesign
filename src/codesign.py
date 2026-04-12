@@ -1205,6 +1205,7 @@ if __name__ == "__main__":
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")
     parser.add_argument("--num_dsps", type=str, help="the number of DSPs to use as a constraint for ScaleHLS. Only use this if attempting to only run the FORWARD PASS.")
     parser.add_argument("--zero_wirelength_costs", type=bool, help="set all wirelength costs to zero (wire_length and wire_energy will return 0)")
+    parser.add_argument("--zero_logic_latencies", type=bool, help="set all logic functional unit latencies to zero")
     parser.add_argument("--constant_wire_length_cost", type=int, help="Instead of estimating the wirelength based on physical layout, use a constant cost for every wire in the design.")  
     parser.add_argument("--min_dsp", type=int, help="minimum DSP usage to start with")
     parser.add_argument("--max_power_density", type=float, help="maximum power density to allow")
