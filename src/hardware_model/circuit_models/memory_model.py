@@ -39,9 +39,9 @@ def _bits_to_capacity_label(total_size_bits):
     return f"{buckets_kb[-1]}KB"
 
 
-def _load_pareto(capacity_label):
+def _load_pareto(capacity_label, pareto_dir=None):
     """Load and return the pareto DataFrame for a given capacity label."""
-    path = os.path.join(_PARETO_DIR, f"pareto_{capacity_label}.csv")
+    path = os.path.join(pareto_dir if pareto_dir is not None else _PARETO_DIR, f"pareto_{capacity_label}.csv")
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"No pareto file for capacity '{capacity_label}': expected {path}"
@@ -69,16 +69,17 @@ class MemoryModel:
         'total_size' (in bits).
     """
 
-    def __init__(self, memory_info, name=None):
+    def __init__(self, memory_info, name=None, pareto_dir=None):
         self.memory_info = memory_info
         self.name = name
         self.total_size_bits = memory_info["total_size"]
+        self._pareto_dir = pareto_dir if pareto_dir is not None else _PARETO_DIR
 
         self.capacity_label = _bits_to_capacity_label(self.total_size_bits)
 
         if self.capacity_label is not None:
             try:
-                self.pareto_df = _load_pareto(self.capacity_label)
+                self.pareto_df = _load_pareto(self.capacity_label, self._pareto_dir)
             except FileNotFoundError:
                 logger.warning(
                     f"No pareto data for capacity {self.capacity_label} "
@@ -88,7 +89,7 @@ class MemoryModel:
         else:
             self.pareto_df = None
 
-        self.max_requests_in_flight = memory_info.get("max_requests_in_flight", 100)
+        self.max_requests_in_flight = memory_info.get("max_requests_in_flight", 5)
 
         self._design_point_index = 0
         self._metric_columns = []

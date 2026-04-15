@@ -153,8 +153,11 @@ class HardwareModel:
 
     def set_memory_models(self, memory_mapping):
         self.memory_mapping = memory_mapping
+        mem_pareto_dir = self.cfg["args"].get("mem_pareto_dir")
+        if mem_pareto_dir == "none":
+            mem_pareto_dir = None
         for memory_name, memory_info in memory_mapping["flattened"].items():
-            self.memory_models[memory_name] = memory_model.MemoryModel(memory_info, name=memory_name)
+            self.memory_models[memory_name] = memory_model.MemoryModel(memory_info, name=memory_name, pareto_dir=mem_pareto_dir)
 
     def init_default_logic_unit_models(self, index=0):
         """Initialize one default LogicUnitModel per function type at a given pareto index.

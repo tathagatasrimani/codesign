@@ -1214,6 +1214,7 @@ if __name__ == "__main__":
     parser.add_argument("--fixed_area_increase_pattern", type=bool, help="number of resources increases by some factor for each iteration")
     parser.add_argument("--leakage_restriction", type=bool, help="restrict the passive power to be less than 1/3 of the total power")
     parser.add_argument("--MUL_restriction", type=bool, help="restrict the MUL flag to be 1")
+    parser.add_argument("--mem_pareto_dir", type=str, help="path to directory containing pareto CSV files for memory model (overrides default pareto_sram_edram)")
     args = parser.parse_args()
 
     main(args)
