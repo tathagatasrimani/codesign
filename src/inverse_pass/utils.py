@@ -688,6 +688,236 @@ def visualize_top_fu_designs(
             plt.show()
 
 
+def visualize_component_vs_system_objective(
+    top_results: List[DesignPointResult],
+    iteration: int,
+    obj_type: str,
+    colors: List[float],
+    log_obj_min: float = None,
+    log_obj_max: float = None,
+    output_dir: str = None,
+):
+    """
+    Scatter each component-level metric against the system-level objective value.
+
+    For each memory block: plots relevant component metrics (latency and/or energy
+    depending on obj_type) on the x-axis vs system objective on the y-axis, with
+    one scatter series per metric and a log-log polynomial trend line per series.
+
+    For FU resources: groups by function type (e.g. Mult16, Add16), averages the
+    component metric across all FUs of that type per design point, and overlays all
+    function types on a single plot.
+
+    Points are colored by the normalized system objective (same viridis_r colormap
+    as other plots).  Trend lines show the log-log slope so the user can read off
+    sensitivity of system objective to each component.
+    """
+    eps = 1e-30
+
+    def _is_numeric(val):
+        try:
+            float(val)
+            return True
+        except (TypeError, ValueError):
+            return False
+
+    def _log_tick_range(arr, min_decades=1.0):
+        """Return (log_lo, log_hi) for arr, guaranteeing at least min_decades span."""
+        lo, hi = np.log10(arr.min()), np.log10(arr.max())
+        if hi - lo < min_decades:
+            mid = (lo + hi) / 2
+            lo, hi = mid - min_decades / 2, mid + min_decades / 2
+        return lo, hi
+
+    def _loglog_trend(x_vals, y_vals):
+        """Linear fit in log-log space. Returns (x_line, y_line, slope) or None."""
+        x = np.asarray(x_vals, dtype=float)
+        y = np.asarray(y_vals, dtype=float)
+        mask = (x > 0) & (y > 0) & np.isfinite(x) & np.isfinite(y)
+        if mask.sum() < 3:
+            return None
+        lx, ly = np.log10(x[mask]), np.log10(y[mask])
+        coeffs = np.polyfit(lx, ly, 1)
+        x_fit = np.logspace(lx.min(), lx.max(), 100)
+        y_fit = 10 ** np.polyval(coeffs, np.log10(x_fit))
+        return x_fit, y_fit, coeffs[0]
+
+    def _setup_cbar(fig, ax):
+        sm = plt.cm.ScalarMappable(cmap='viridis_r', norm=plt.Normalize(0, 1))
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax, shrink=0.8, pad=0.02)
+        cbar.set_label(f'System {obj_type.capitalize()}', fontsize=24, labelpad=2, fontweight='bold')
+        tick_positions = [0.0, 0.25, 0.5, 0.75, 1.0]
+        if log_obj_min is not None and log_obj_max is not None and log_obj_max > log_obj_min:
+            tick_labels = [f'{np.exp(log_obj_min + t * (log_obj_max - log_obj_min)):.2e}'
+                           for t in tick_positions]
+        else:
+            tick_labels = ['Best', '', '', '', 'Worst']
+        cbar.set_ticks(tick_positions)
+        cbar.set_ticklabels(tick_labels, fontweight='bold')
+        cbar.ax.invert_yaxis()
+        cbar.ax.tick_params(labelsize=10)
+
+    def _mem_series_for_obj(numeric_cols):
+        """Return [(label, col_name)] relevant to obj_type."""
+        hit_lat   = next((c for c in numeric_cols if "hit"   in c.lower() and "latency" in c.lower()), None)
+        write_lat = next((c for c in numeric_cols if "write" in c.lower() and "latency" in c.lower()), None)
+        hit_e     = next((c for c in numeric_cols if "hit"   in c.lower() and "energy"  in c.lower()), None)
+        write_e   = next((c for c in numeric_cols if "write" in c.lower() and "energy"  in c.lower()), None)
+        if obj_type == "delay":
+            pairs = [("Hit Latency", hit_lat), ("Write Latency", write_lat)]
+        elif obj_type == "energy":
+            pairs = [("Hit Energy", hit_e), ("Write Energy", write_e)]
+        else:  # edp, ed2
+            pairs = [("Hit Latency", hit_lat), ("Write Latency", write_lat),
+                     ("Hit Energy", hit_e),    ("Write Energy", write_e)]
+        return [(lbl, col) for lbl, col in pairs if col is not None]
+
+    def _fu_component(fu_info):
+        """Return (x_label, x_value) for this FU based on obj_type."""
+        delay  = float(fu_info.get("delay",     0))
+        energy = float(fu_info.get("E_act_inv", 0))
+        if obj_type == "delay":
+            return "FU Delay (s)", delay
+        elif obj_type == "energy":
+            return "FU Active Energy (J)", energy
+        else:
+            return "FU Delay × Energy", delay * energy
+
+    line_colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+    markers     = ['o', 's', '^', 'D']
+
+    # ---- Memory: one plot per block ----
+    mem_entries = {}  # mem_name -> [(mem_info_dict, obj_val, color)]
+    for r, color in zip(top_results, colors):
+        for mem_name, mem_info in r.design_point.get("memory", {}).items():
+            if isinstance(mem_info, dict):
+                mem_entries.setdefault(mem_name, []).append((mem_info, r.obj_value, color))
+
+    for mem_name, entries in mem_entries.items():
+        mem_infos = [e[0] for e in entries]
+        obj_vals  = np.array([e[1] + eps for e in entries])
+        pt_colors = [e[2] for e in entries]
+
+        numeric_cols = [k for k in mem_infos[0]
+                        if k not in ("index", "capacity") and _is_numeric(mem_infos[0][k])]
+        series = _mem_series_for_obj(numeric_cols)
+        if not series:
+            continue
+
+        capacity = mem_infos[0].get("capacity")
+        cap_str  = f" [{capacity}]" if capacity else ""
+
+        plt.rcdefaults()
+        fig, ax = plt.subplots(figsize=(6, 4))
+
+        all_x_vals = []
+        for (label, col), lc in zip(series, line_colors):
+            x_vals = np.array([float(m.get(col, 0)) + eps for m in mem_infos])
+            all_x_vals.append(x_vals)
+            ax.scatter(x_vals, obj_vals, color=lc, marker='o',
+                       s=80, alpha=0.75, edgecolors='white', linewidths=0.3, zorder=2,
+                       label=label)
+            trend = _loglog_trend(x_vals, obj_vals)
+            if trend:
+                x_fit, y_fit, slope = trend
+                ax.plot(x_fit, y_fit, color=lc, linewidth=2.0, linestyle='--',
+                        label=f'{label} trend', zorder=3)
+
+        all_x_cat = np.concatenate(all_x_vals)
+        mem_x_label = f'Accumulation Buffer Delay (ns)'
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(mem_x_label, fontsize=20, labelpad=6, fontweight='bold')
+        ax.set_ylabel(f'System {obj_type.capitalize()}', fontsize=20, labelpad=6, fontweight='bold')
+        x_ticks = np.logspace(*_log_tick_range(all_x_cat), 5)
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels([f'{v:.2e}' for v in x_ticks])
+        ax.xaxis.set_minor_locator(plt.NullLocator())
+        y_ticks = np.logspace(*_log_tick_range(obj_vals), 5)
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels([f'{v:.2e}' for v in y_ticks])
+        ax.yaxis.set_minor_locator(plt.NullLocator())
+        ax.legend(fontsize=13, framealpha=0.9)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.tick_params(labelsize=10)
+        plt.tight_layout()
+
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            safe_name = mem_name.replace('/', '_').replace(' ', '_')
+            filepath = os.path.join(output_dir,
+                f'comp_vs_sys_mem_{capacity}_{safe_name}_iter_{iteration}.png')
+            plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white')
+            logger.info(f"Saved component-vs-system memory plot for '{mem_name}' to {filepath}")
+            plt.close(fig)
+        else:
+            plt.show()
+
+    # ---- FU: one plot covering all function types ----
+    # Group by function type; average metric over all FUs of that type per design point.
+    fu_by_function = {}  # fn -> [(x_val, obj_val, color)]
+    fu_x_label = None
+    for r, color in zip(top_results, colors):
+        by_fn = {}
+        for fu_name, fu_info in r.design_point.get("fu_logic", {}).items():
+            if not isinstance(fu_info, dict):
+                continue
+            fn = fu_info.get("function", fu_name)
+            lbl, val = _fu_component(fu_info)
+            if fu_x_label is None:
+                fu_x_label = lbl
+            by_fn.setdefault(fn, []).append(val)
+        for fn, vals in by_fn.items():
+            fu_by_function.setdefault(fn, []).append((float(np.mean(vals)), r.obj_value, color))
+
+    if fu_by_function:
+        plt.rcdefaults()
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        palette = plt.cm.tab10(np.linspace(0, 1, max(len(fu_by_function), 1)))
+        for (fn, entries), lc in zip(fu_by_function.items(), palette):
+            x_vals   = np.array([e[0] + eps for e in entries])
+            obj_vals = np.array([e[1] + eps for e in entries])
+
+            ax.scatter(x_vals, obj_vals, color=lc, marker='o',
+                       s=80, alpha=0.75, edgecolors='white', linewidths=0.3, zorder=2,
+                       label=fn)
+            trend = _loglog_trend(x_vals, obj_vals)
+            if trend:
+                x_fit, y_fit, slope = trend
+                ax.plot(x_fit, y_fit, color=lc, linewidth=2.0, linestyle='--',
+                        label=f'{fn} trend (slope {slope:.2f})', zorder=3)
+
+        all_fu_x   = np.array([e[0] + eps for entries in fu_by_function.values() for e in entries])
+        all_fu_obj = np.array([e[1] + eps for entries in fu_by_function.values() for e in entries])
+        ax.set_xscale('log')
+        ax.set_yscale('log')
+        ax.set_xlabel(fu_x_label or 'FU component metric', fontsize=16, labelpad=6, fontweight='bold')
+        ax.set_ylabel(f'System {obj_type.capitalize()}', fontsize=16, labelpad=6, fontweight='bold')
+        x_ticks = np.logspace(*_log_tick_range(all_fu_x), 5)
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels([f'{v:.2e}' for v in x_ticks])
+        ax.xaxis.set_minor_locator(plt.NullLocator())
+        y_ticks = np.logspace(*_log_tick_range(all_fu_obj), 5)
+        ax.set_yticks(y_ticks)
+        ax.set_yticklabels([f'{v:.2e}' for v in y_ticks])
+        ax.yaxis.set_minor_locator(plt.NullLocator())
+        ax.legend(fontsize=13, framealpha=0.9)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.tick_params(labelsize=13)
+        plt.tight_layout()
+
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+            filepath = os.path.join(output_dir, f'comp_vs_sys_fu_iter_{iteration}.png')
+            plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white')
+            logger.info(f"Saved component-vs-system FU plot to {filepath}")
+            plt.close(fig)
+        else:
+            plt.show()
+
+
 def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, obj_type: str, top_percent: float = 0.1, output_dir: str = None):
     """
     Create visualizations of the top designs by objective value.
@@ -876,6 +1106,12 @@ def visualize_top_designs(all_results: List[DesignPointResult], iteration: int, 
     else:
         plt.show()
 
+    visualize_component_vs_system_objective(
+        top_results, iteration, obj_type, colors,
+        log_obj_min=log_obj_min, log_obj_max=log_obj_max,
+        output_dir=output_dir,
+    )
+
     return top_results, colors
 
 
@@ -915,6 +1151,18 @@ def regenerate_plots_from_log_dir(log_dir: str, obj_type: str = "edp", top_perce
         n_valid = len(all_results)
         eps = 1e-30
 
+        obj_vals_regen = [r.obj_value for r in top_results]
+        regen_min, regen_max = min(obj_vals_regen), max(obj_vals_regen)
+        regen_log_min = regen_log_max = None
+        if regen_max > regen_min:
+            regen_log_min = min(np.log(v + eps) for v in obj_vals_regen)
+            regen_log_max = max(np.log(v + eps) for v in obj_vals_regen)
+        visualize_component_vs_system_objective(
+            top_results, iteration, obj_type, colors,
+            log_obj_min=regen_log_min, log_obj_max=regen_log_max,
+            output_dir=log_dir,
+        )
+
         plot_2d_scatter(
             top_results=top_results,
             x_attr='Ieff', y_attr='Ioff',
@@ -949,3 +1197,130 @@ def regenerate_plots_from_log_dir(log_dir: str, obj_type: str = "edp", top_perce
         visualize_top_memory_designs(top_results, iteration, obj_type, colors, output_dir=log_dir)
         visualize_memory_latency_scatter(top_results, iteration, obj_type, colors, output_dir=log_dir)
         visualize_top_fu_designs(top_results, iteration, obj_type, colors, output_dir=log_dir)
+
+
+def plot_pareto_execution_time_vs_area(
+    json_path,
+    output_dir: str = None,
+    labels: List[str] = None,
+    output_filename: str = "pareto.png",
+):
+    """
+    Plot a Pareto curve of execution_time vs total_area.
+
+    Args:
+        json_path:       A single path string or a list of paths to
+                         design_point_summary_iter_<N>.json files.
+                         When multiple paths are given, each file gets
+                         its own color and all Pareto fronts are overlaid
+                         on the same axes.
+        output_dir:      Directory to save the PNG (if None, shows interactively).
+        labels:          Optional list of legend labels, one per file.
+                         Defaults to the filename stem of each path.
+        output_filename: Filename for the saved PNG (used only when
+                         output_dir is set).  Ignored for single-file
+                         calls where the name is derived from the input.
+    """
+    import json
+    from paretoset import paretoset
+
+    # Normalise to a list of paths
+    if isinstance(json_path, str):
+        paths = [json_path]
+    else:
+        paths = list(json_path)
+
+    if labels is None:
+        labels = [os.path.basename(os.path.dirname(os.path.abspath(p))) for p in paths]
+
+    assert len(labels) == len(paths)
+
+    distinct_colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3',
+                       '#ff7f00', '#a65628', '#f781bf', '#999999']
+    palette = distinct_colors[:len(paths)]
+
+    plt.rcdefaults()
+    fig, ax = plt.subplots(figsize=(6, 4))
+
+    all_times, all_areas = [], []
+    all_pareto_times, all_pareto_areas = [], []
+
+    for path, label, color in zip(paths, labels, palette):
+        with open(path) as f:
+            data = json.load(f)
+
+        times = np.array([d['execution_time'] for d in data])
+        areas = np.array([d['total_area']     for d in data])
+        valid = np.array([d.get('satisfies_constraints', True) for d in data])
+
+        all_times.append(times)
+        all_areas.append(areas)
+
+        # Min latency: primary=time, tiebreak=area
+        min_t = times.min()
+        tied = np.where(times == min_t)[0]
+        min_lat_idx = tied[np.argmin(areas[tied])]
+        # Min area: primary=area, tiebreak=time
+        min_a = areas.min()
+        tied = np.where(areas == min_a)[0]
+        min_area_idx = tied[np.argmin(times[tied])]
+        print(f"\n[{label}]")
+        print(f"  Min latency:  execution_time={times[min_lat_idx]:.4e}  total_area={areas[min_lat_idx]:.4e}")
+        print(f"  Min area:     execution_time={times[min_area_idx]:.4e}  total_area={areas[min_area_idx]:.4e}")
+
+        pareto_mask = paretoset(np.column_stack([times, areas]), sense=["min", "min"])
+
+        # Scatter all non-Pareto points in a muted version of the series color
+        non_pareto = ~pareto_mask
+        if non_pareto.any():
+            ax.scatter(times[non_pareto & valid], areas[non_pareto & valid],
+                       color=color, s=30, alpha=0.1, edgecolors='none', zorder=2)
+
+        # Pareto front
+        pareto_t = times[pareto_mask]
+        pareto_a = areas[pareto_mask]
+        sort_p = np.argsort(pareto_t)
+        pareto_t = pareto_t[sort_p]
+        pareto_a = pareto_a[sort_p]
+
+        all_pareto_times.append(pareto_t)
+        all_pareto_areas.append(pareto_a)
+
+        ax.step(pareto_t, pareto_a, where='post', color=color,
+                linewidth=2.0, zorder=4, label=label)
+        ax.scatter(pareto_t, pareto_a, color=color, s=60, zorder=5,
+                   edgecolors='white', linewidths=0.5)
+
+    # 7 ticks: min, 5 interior, max — evenly spaced in log space, based on Pareto points only
+    pareto_times_cat = np.concatenate(all_pareto_times)
+    pareto_areas_cat = np.concatenate(all_pareto_areas)
+    x_ticks = np.logspace(np.log10(pareto_times_cat.min()), np.log10(pareto_times_cat.max()), 5)
+    y_ticks = np.logspace(np.log10(pareto_areas_cat.min()), np.log10(pareto_areas_cat.max()), 7)
+
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlim(x_ticks[0] / 1.1, x_ticks[-1] * 1.1)
+    ax.set_ylim(y_ticks[0] / 1.1, y_ticks[-1] * 1.1)
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels([f'{v:.2e}' for v in x_ticks])
+    ax.xaxis.set_minor_locator(plt.NullLocator())
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels([f'{v:.2e}' for v in y_ticks])
+    ax.yaxis.set_minor_locator(plt.NullLocator())
+    ax.set_xlabel('Execution time (ns)', fontsize=20, labelpad=6, fontweight='bold')
+    ax.set_ylabel('Total area (µm²)',    fontsize=20, labelpad=6, fontweight='bold')
+    ax.tick_params(labelsize=10)
+    ax.legend(fontsize=13, framealpha=0.9)
+    ax.grid(True, alpha=0.3, linestyle='--')
+    plt.tight_layout()
+
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+        if len(paths) == 1:
+            output_filename = f'{os.path.splitext(os.path.basename(paths[0]))[0]}_pareto.png'
+        filepath = os.path.join(output_dir, output_filename)
+        plt.savefig(filepath, dpi=200, bbox_inches='tight', facecolor='white')
+        logger.info(f"Saved Pareto plot to {filepath}")
+        plt.close(fig)
+    else:
+        plt.show()

@@ -653,7 +653,8 @@ class Optimizer:
             ]
 
             results_by_idx = {}
-            with ProcessPoolExecutor(max_workers=len(chunks)) as executor:
+            max_workers = os.cpu_count() or 1
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 future_to_chunk = {executor.submit(_worker_basic_optimization_chunk, task): task[1] for task in tasks}
                 for future in as_completed(future_to_chunk):
                     chunk = future_to_chunk[future]
@@ -774,7 +775,7 @@ class Optimizer:
         elif opt == "bayesian":
             return self.bayesian_optimization(
                 improvement, iteration,
-                n_trials=kwargs.get("n_trials", 1500),
+                n_trials=kwargs.get("n_trials", 3000),
                 n_parallel=kwargs.get("n_parallel", 250),
                 fu_grouping=kwargs.get("fu_grouping", "shared"),
                 mem_grouping=kwargs.get("mem_grouping", "by_capacity"),
