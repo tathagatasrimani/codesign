@@ -1,0 +1,66 @@
+reg_vitis_test_sweep_bayesian:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: bayesian
+
+reg_vitis_test_sweep_bayesian_opt_1:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+
+reg_vitis_test_sweep_bayesian_opt_1_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+    mem_grouping: independent
+
+reg_vitis_test_sweep_bayesian_opt_1_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+
+reg_vitis_test_sweep_bayesian_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    mem_grouping: independent
+
+reg_vitis_test_sweep_bayesian_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+
+reg_vitis_test_sweep_3mm_uneven_by_capacity:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    #mem_grouping: independent
+
+reg_vitis_test_sweep_3mm_uneven_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    mem_grouping: independent
+
+reg_vitis_test_sweep_3mm_uneven_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram

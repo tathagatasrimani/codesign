@@ -1,0 +1,13 @@
+logic_vitis_test_sweep_bayesian_dg_ns:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    solver: bayesian
+
+logic_vitis_test_sweep_bayesian_bulk:
+  base_cfg: vitis_test_sweep
+  args:
+    model_cfg: sweep_basic_cfg_bulk
+    fixed_area_increase_pattern: True
+    solver: bayesian
