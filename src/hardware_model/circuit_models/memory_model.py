@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 _PARETO_DIR = os.path.join(
     os.path.dirname(__file__),
     "..", "tech_models", "rsg", "destiny_3d_cache",
-    "config", "sweep_out", "postprocessed", "pareto",
+    "config", "sweep_out", "postprocessed", "pareto_sram", "pareto"
 )
 
 # Columns that are metadata / not real design metrics
