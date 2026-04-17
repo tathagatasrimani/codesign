@@ -1310,7 +1310,7 @@ def plot_pareto_execution_time_vs_area(
     ax.set_xlabel('Execution time (ns)', fontsize=20, labelpad=6, fontweight='bold')
     ax.set_ylabel('Total area (µm²)',    fontsize=20, labelpad=6, fontweight='bold')
     ax.tick_params(labelsize=10)
-    ax.legend(fontsize=13, framealpha=0.9)
+    ax.legend(fontsize=10, framealpha=0.9, loc='upper right')
     ax.grid(True, alpha=0.3, linestyle='--')
     plt.tight_layout()
 

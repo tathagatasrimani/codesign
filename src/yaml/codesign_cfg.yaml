@@ -37,9 +37,12 @@ default:
     leakage_restriction: False
     MUL_restriction: False
     fu_grouping: shared
-    mem_grouping: independent
+    mem_grouping: by_capacity
     sampler: qmc
     zero_logic_latencies: False
+    mem_pareto_dir: none
+    streamhls_setup_time_limit: 2
+    streamhls_time_limit: 2
 
 
 vitis_test_mvs:

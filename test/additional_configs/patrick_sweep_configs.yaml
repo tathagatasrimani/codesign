@@ -30,6 +30,35 @@ vitis_test_sweep_bayesian:
     fixed_area_increase_pattern: True
     solver: bayesian
 
+vitis_test_sweep_bayesian_opt_1:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+
+vitis_test_sweep_bayesian_opt_1_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+    mem_grouping: independent
+
+vitis_test_sweep_bayesian_opt_1_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    streamhls_opt_level: 1
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+
+vitis_test_sweep_bayesian_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    mem_grouping: independent
+
+vitis_test_sweep_bayesian_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+
 vitis_test_sweep_basic_attention:
   base_cfg: vitis_test_sweep_bayesian
   args:
@@ -91,7 +120,66 @@ vitis_test_sweep_basic_llama_decode_feedforward:
 # benchmark = HLS source dir in src/benchmarks/vitis/
 # class     = data.py key (only when it differs from benchmark name)
 # ---------------------------------------------------------------------------
-vitis_test_sweep_llama3_8b_prefill_attention:
+vitis_test_sweep_llama3_8b_prefill_attention_individual_edram_bulk:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg_bulk
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BPrefillAttention
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_attention_individual_edram_bulk:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg_bulk
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BDecodeAttention
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_prefill_feedforward_individual_edram_bulk:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg_bulk
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+    class: Llama38BPrefillFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_feedforward_individual_edram_bulk:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg_bulk
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+    class: Llama38BDecodeFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
+    #checkpoint_start_step: pd
+
+# ---------------------------------------------------------------------------
+# LLaMA 3 8B GQA sweep configs (hidden=4096, n_heads=32, n_kv_heads=8, head_dim=128)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_llama3_8b_prefill_attention_individual_edram:
   base_cfg: vitis_test_sweep_bayesian
   args:
     model_cfg: sweep_basic_cfg
@@ -99,6 +187,185 @@ vitis_test_sweep_llama3_8b_prefill_attention:
     min_dsp: 40
     benchmark: Llama38BPrefillAttention
     streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_attention_individual_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BDecodeAttention
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_prefill_feedforward_individual_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+    class: Llama38BPrefillFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_feedforward_individual_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+    class: Llama38BDecodeFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
+    #checkpoint_start_step: pd
+
+# ---------------------------------------------------------------------------
+# LLaMA 3 8B GQA sweep configs (hidden=4096, n_heads=32, n_kv_heads=8, head_dim=128)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_llama3_8b_prefill_attention_individual_edram_only:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BPrefillAttention
+    streamhls_opt_level: 5
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_edram/pareto
+    #checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_attention_individual_edram_only:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BDecodeAttention
+    streamhls_opt_level: 5
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_edram/pareto
+    #checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_prefill_feedforward_individual_edram_only:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+    class: Llama38BPrefillFeedForward
+    streamhls_opt_level: 5
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_edram/pareto
+    #checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_feedforward_individual_edram_only:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+    class: Llama38BDecodeFeedForward
+    streamhls_opt_level: 5
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_edram/pareto
+    #checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
+    #checkpoint_start_step: pd
+
+# ---------------------------------------------------------------------------
+# LLaMA 3 8B GQA sweep configs (hidden=4096, n_heads=32, n_kv_heads=8, head_dim=128)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_llama3_8b_prefill_attention_individual:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BPrefillAttention
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_attention_individual:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 40
+    benchmark: Llama38BDecodeAttention
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_prefill_feedforward_individual:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaFeedForward
+    class: Llama38BPrefillFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
+    #checkpoint_start_step: pd
+
+vitis_test_sweep_llama3_8b_decode_feedforward_individual:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 20
+    benchmark: LlamaDecodeFeedForward
+    class: Llama38BDecodeFeedForward
+    streamhls_opt_level: 3
+    mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
+    #checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
+    #checkpoint_start_step: pd
+
+# ---------------------------------------------------------------------------
+# LLaMA 3 8B GQA sweep configs (hidden=4096, n_heads=32, n_kv_heads=8, head_dim=128)
+# benchmark = HLS source dir in src/benchmarks/vitis/
+# class     = data.py key (only when it differs from benchmark name)
+# ---------------------------------------------------------------------------
+vitis_test_sweep_llama3_8b_prefill_attention:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    fixed_area_increase_pattern: True
+    min_dsp: 400
+    benchmark: Llama38BPrefillAttention
+    streamhls_opt_level: 5
+    #mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
     #checkpoint_load_dir: tmp_Llama38BPrefillAttention_edp_5
     #checkpoint_start_step: pd
 
@@ -109,7 +376,9 @@ vitis_test_sweep_llama3_8b_decode_attention:
     fixed_area_increase_pattern: True
     min_dsp: 40
     benchmark: Llama38BDecodeAttention
-    streamhls_opt_level: 3
+    streamhls_opt_level: 5
+    #mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
     #checkpoint_load_dir: tmp_Llama38BDecodeAttention_edp_18
     #checkpoint_start_step: pd
 
@@ -121,7 +390,9 @@ vitis_test_sweep_llama3_8b_prefill_feedforward:
     min_dsp: 20
     benchmark: LlamaFeedForward
     class: Llama38BPrefillFeedForward
-    streamhls_opt_level: 3
+    streamhls_opt_level: 5
+    #mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
     #checkpoint_load_dir: tmp_Llama38BPrefillFeedForward_edp_5
     #checkpoint_start_step: pd
 
@@ -133,7 +404,9 @@ vitis_test_sweep_llama3_8b_decode_feedforward:
     min_dsp: 20
     benchmark: LlamaDecodeFeedForward
     class: Llama38BDecodeFeedForward
-    streamhls_opt_level: 3
+    streamhls_opt_level: 5
+    #mem_grouping: independent
+    #mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
     #checkpoint_load_dir: tmp_Llama38BDecodeFeedForward_edp_4
     #checkpoint_start_step: pd
 
@@ -821,6 +1094,37 @@ vitis_test_sweep_dot_prod:
     min_dsp: 5
     benchmark: gemm
     class: dot_prod
+
+vitis_test_sweep_3mm_uneven_by_capacity:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    #mem_grouping: independent
+
+vitis_test_sweep_3mm_uneven_independent:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    mem_grouping: independent
+
+vitis_test_sweep_3mm_uneven_independent_edram:
+  base_cfg: vitis_test_sweep_bayesian
+  args:
+    model_cfg: sweep_basic_cfg
+    streamhls_opt_level: 1
+    min_dsp: 15
+    benchmark: k3mm
+    class: k3mm
+    mem_grouping: independent
+    mem_pareto_dir: /pool0/pmcewen/rsgvm13dir/codesign/src/hardware_model/tech_models/rsg/destiny_3d_cache/config/sweep_out/postprocessed/pareto_sram_edram
 
 run_sweep_mvs_1_spice:
   base_cfg: default

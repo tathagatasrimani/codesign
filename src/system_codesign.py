@@ -704,7 +704,7 @@ class SystemCodesign:
             return None
 
         if solver == "bayesian":
-            n_trials = int(constraints.get("n_trials", 500))
+            n_trials = int(constraints.get("n_trials", 3000))
             n_pca_components = int(constraints.get("n_pca_components", 3))
             return self._optimize_system_bayesian(
                 block_names, candidate_lists, objective, shared_tech, constraints, n_trials, n_pca_components

@@ -313,9 +313,11 @@ class Codesign:
                 self.cur_dsp_usage = int(self.cfg["args"]["area"] / (sim_util.xreplace_safe(self.hw.circuit_model.tech_model.param_db["A_gate"], self.hw.circuit_model.tech_model.base_params.tech_values) * self.dsp_multiplier))
                 self.cur_dsp_usage = max(self.cur_dsp_usage, self.cfg["args"]["min_dsp"])
             tilelimit = 1
+            timelimit = self.cfg["args"]["streamhls_time_limit"]
         else:
             self.cur_dsp_usage = 10000
             tilelimit = 1
+            timelimit = self.cfg["args"]["streamhls_setup_time_limit"]
 
         self.set_resource_constraint_streamhls()
 
@@ -332,7 +334,7 @@ class Codesign:
             pwd
             source setup-env.sh
             cd examples
-            python run_streamhls.py -b {save_path} -d {save_path} -k {self.data_benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {2} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1 --conv {conv}
+            python run_streamhls.py -b {save_path} -d {save_path} -k {self.data_benchmark_name} -O {streamhls_opt_level} --dsps {self.cur_dsp_usage} --timelimit {timelimit} --tilelimit {tilelimit} --tech-config {config_path} --bufferize 1 --conv {conv}
             '''
         ]
 

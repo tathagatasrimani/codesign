@@ -92,7 +92,232 @@ llama3_8b_system:
   system_constraints:
     max_total_power: 150.0
     max_total_area: 1.0e12
-    objective: edp
+    objective: delay
+
+llama3_8b_system_individual:
+  name: "llama3_8b_inference"
+  description: "LLaMA 3 8B inference: prefill (64 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 32.0e9            # ~28 GB model weights at FP32
+
+  benchmark:
+    class: Llama38BInference
+    module_path: src/benchmarks/vitis/Llama38BInference
+    init_args:
+      hidden: 4096
+      n_heads: 32
+      n_kv_heads: 8
+      head_dim: 128
+      ffn_dim: 14336
+      n_layers: 32
+      n_decode: 64
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 4096]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_feedforward: prefill_feedforward
+      decode_attention: decode_attention
+      decode_feedforward: decode_feedforward
+
+  block_types:
+    # --- Prefill phase blocks (process full prompt) ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_attention_individual
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 167772160          # GQA: wq+wk+wv+wo (see above)
+
+    prefill_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_feedforward_individual
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 704643072          # SwiGLU: w1+w3+w2 (see above)
+
+    # --- Decode phase blocks (one token at a time, uses KV cache) ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_attention_individual
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,8,64,128) + v_cache(1,8,64,128)
+        input_bytes: 540672              # 16,384 + 262,144 + 262,144
+        output_bytes: 16384              # (1, 1, 4096) × 4B
+        weight_bytes: 167772160          # same projections as prefill attention
+
+    decode_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_feedforward_individual
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16384               # (1, 1, 4096) × 4B
+        output_bytes: 16384
+        weight_bytes: 704643072          # same weights as prefill feedforward
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: delay
+
+llama3_8b_system_individual_edram:
+  name: "llama3_8b_inference"
+  description: "LLaMA 3 8B inference: prefill (64 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 32.0e9            # ~28 GB model weights at FP32
+
+  benchmark:
+    class: Llama38BInference
+    module_path: src/benchmarks/vitis/Llama38BInference
+    init_args:
+      hidden: 4096
+      n_heads: 32
+      n_kv_heads: 8
+      head_dim: 128
+      ffn_dim: 14336
+      n_layers: 32
+      n_decode: 64
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 4096]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_feedforward: prefill_feedforward
+      decode_attention: decode_attention
+      decode_feedforward: decode_feedforward
+
+  block_types:
+    # --- Prefill phase blocks (process full prompt) ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_attention_individual_edram
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 167772160          # GQA: wq+wk+wv+wo (see above)
+
+    prefill_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_feedforward_individual_edram
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 704643072          # SwiGLU: w1+w3+w2 (see above)
+
+    # --- Decode phase blocks (one token at a time, uses KV cache) ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_attention_individual_edram
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,8,64,128) + v_cache(1,8,64,128)
+        input_bytes: 540672              # 16,384 + 262,144 + 262,144
+        output_bytes: 16384              # (1, 1, 4096) × 4B
+        weight_bytes: 167772160          # same projections as prefill attention
+
+    decode_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_feedforward_individual_edram
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16384               # (1, 1, 4096) × 4B
+        output_bytes: 16384
+        weight_bytes: 704643072          # same weights as prefill feedforward
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: delay
+
+llama3_8b_system_individual_edram_bulk:
+  name: "llama3_8b_inference"
+  description: "LLaMA 3 8B inference: prefill (64 tokens) + decode (64 tokens)"
+  shared_tech: false
+
+  global_memory:
+    bandwidth_gbps: 100.0
+    latency_ns: 100.0
+    energy_per_bit_pj: 10.0
+    capacity_bytes: 32.0e9            # ~28 GB model weights at FP32
+
+  benchmark:
+    class: Llama38BInference
+    module_path: src/benchmarks/vitis/Llama38BInference
+    init_args:
+      hidden: 4096
+      n_heads: 32
+      n_kv_heads: 8
+      head_dim: 128
+      ffn_dim: 14336
+      n_layers: 32
+      n_decode: 64
+      cache_len: 64
+    input_shapes:
+      - [1, 64, 4096]           # prompt tensor (batch, prompt_len, hidden)
+    module_attr_map:
+      prefill_attention: prefill_attention
+      prefill_feedforward: prefill_feedforward
+      decode_attention: decode_attention
+      decode_feedforward: decode_feedforward
+
+  block_types:
+    # --- Prefill phase blocks (process full prompt) ---
+    prefill_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_attention_individual_edram_bulk
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 167772160          # GQA: wq+wk+wv+wo (see above)
+
+    prefill_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_prefill_feedforward_individual_edram_bulk
+      shared_weights: false
+      data_sizes:
+        input_bytes: 1048576             # (1, 64, 4096) × 4B
+        output_bytes: 1048576
+        weight_bytes: 704643072          # SwiGLU: w1+w3+w2 (see above)
+
+    # --- Decode phase blocks (one token at a time, uses KV cache) ---
+    decode_attention:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_attention_individual_edram_bulk
+      shared_weights: false
+      data_sizes:
+        # x(1,1,4096) + k_cache(1,8,64,128) + v_cache(1,8,64,128)
+        input_bytes: 540672              # 16,384 + 262,144 + 262,144
+        output_bytes: 16384              # (1, 1, 4096) × 4B
+        weight_bytes: 167772160          # same projections as prefill attention
+
+    decode_feedforward:
+      codesign_config: vitis_test_sweep_llama3_8b_decode_feedforward_individual_edram_bulk
+      shared_weights: false
+      data_sizes:
+        input_bytes: 16384               # (1, 1, 4096) × 4B
+        output_bytes: 16384
+        weight_bytes: 704643072          # same weights as prefill feedforward
+
+  dfg:
+    default_transfer: global_memory
+
+  system_constraints:
+    max_total_power: 150.0
+    max_total_area: 1.0e12
+    objective: delay
 
 # ---------------------------------------------------------------------------
 # DeepSeek-V3 (MoE): prefill (512 tokens) + decode (64 tokens)
