@@ -89,7 +89,7 @@ class MemoryModel:
         else:
             self.pareto_df = None
 
-        self.max_requests_in_flight = memory_info.get("max_requests_in_flight", 5)
+        self.min_II = 0.0
 
         self._design_point_index = 0
         self._metric_columns = []
@@ -105,6 +105,7 @@ class MemoryModel:
         row = self.pareto_df.iloc[self._design_point_index]
         for col in self._metric_columns:
             setattr(self, col, row[col])
+        self.min_II = max(self.subarrayReadLatency_ns, self.subarrayWriteLatency_ns)
 
     @property
     def design_point_index(self):

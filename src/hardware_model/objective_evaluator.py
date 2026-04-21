@@ -480,7 +480,7 @@ class ObjectiveEvaluator:
                                 crit_path_ram_depth = ram_depth
                             log_info(f"recurrence_II: {candidate_II} for store node {store_node} (mem {mem_name}) with ram depth {ram_depth}")
 
-                        # Memory port constraint: II >= ceil(mem_latency_cycles / max_requests_in_flight)
+                        # Memory port constraint: II >= ceil(subarray_latency / clk_period)
                         memory_port_II = 0
                         critical_memory_port = None
                         loop_1x_graph = self.loop_1x_graphs[loop_name][True]
@@ -492,11 +492,9 @@ class ObjectiveEvaluator:
                             if not mn or mn not in self.memory_models:
                                 continue
                             mm = self.memory_models[mn]
-                            if mm.max_requests_in_flight <= 0:
+                            if mm.min_II <= 0:
                                 continue
-                            lat_ns = mm.cacheHitLatency_ns if fn in _MEMORY_READ_OPS else mm.cacheWriteLatency_ns
-                            lat_cycles = math.ceil(lat_ns / clk_period) if clk_period > 0 else 0
-                            candidate = math.ceil(lat_cycles / mm.max_requests_in_flight)
+                            candidate = math.ceil(mm.min_II / clk_period) if clk_period > 0 else 0
                             if candidate > memory_port_II:
                                 memory_port_II = candidate
                                 critical_memory_port = mn
@@ -548,10 +546,17 @@ class ObjectiveEvaluator:
                             "critical_recurrence_fus": crit_path_fus if crit_path_fus else None,
                         }
                     else:
-                        pred_delay = sim_util.xreplace_safe(
-                            self.tech_model.base_params.clk_period, tv
-                        )
-                        pred_bd_delta["clk"] = pred_delay
+                        clk_period = sim_util.xreplace_safe(self.tech_model.base_params.clk_period, tv)
+                        pred_fn = dfg.nodes[pred]["function"]
+                        mem_name = dfg.nodes[pred].get("mem_name")
+                        if pred_fn in _MEMORY_OPS and mem_name and mem_name in self.memory_models:
+                            mm = self.memory_models[mem_name]
+                            pred_delay = math.ceil(mm.min_II / clk_period) * clk_period
+                            pred_bd_delta["memory"] = pred_delay
+                            pred_bd_delta["memory_by_block"][mem_name] = pred_delay
+                        else:
+                            pred_delay = clk_period
+                            pred_bd_delta["clk"] = pred_delay
 
                 elif dfg.nodes[pred]["function"] == "Call":
                     if basic_block_name in self.dataflow_blocks:

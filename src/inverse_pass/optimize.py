@@ -132,7 +132,7 @@ def _worker_basic_optimization_chunk(args_tuple):
                     if mem_name in evaluator.memory_models:
                         mem_model = evaluator.memory_models[mem_name]
                         row = mem_model.get_design_point_row()
-                        expanded_memory[mem_name] = {"index": mem_idx, "capacity": mem_model.capacity_label, **row}
+                        expanded_memory[mem_name] = {"index": mem_idx, "capacity": mem_model.capacity_label, "min_II": mem_model.min_II, **row}
                     else:
                         expanded_memory[mem_name] = {"index": mem_idx}
                 expanded_dp["memory"] = expanded_memory
