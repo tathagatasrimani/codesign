@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import re
 import argparse
 import json
 import csv
+import bisect
 
 def count_ops(mlir_text: str) -> int:
     """
@@ -150,6 +153,132 @@ def extract_delay_from_log(log_file_path: str, debug: bool = False):
     return None, None, None, None
 
 
+def _extract_braced_dict(text: str, start_pos: int) -> str | None:
+    """
+    Starting at start_pos, find and return a balanced {...} dictionary substring.
+    """
+    i = start_pos
+    dict_start = None
+    brace_count = 0
+
+    while i < len(text):
+        if text[i] == '{':
+            dict_start = i
+            brace_count = 1
+            i += 1
+            break
+        i += 1
+
+    if dict_start is None:
+        return None
+
+    while i < len(text) and brace_count > 0:
+        if text[i] == '{':
+            brace_count += 1
+        elif text[i] == '}':
+            brace_count -= 1
+        i += 1
+
+    if brace_count != 0:
+        return None
+
+    return text[dict_start:i]
+
+
+def _parse_sub_expression_dict(sub_expr_str: str, debug: bool = False) -> dict | None:
+    """
+    Parse the sub-expressions dictionary from logs into a Python dictionary.
+    """
+    try:
+        normalized = sub_expr_str.replace('inf', '"inf"').replace("'", '"')
+        return json.loads(normalized)
+    except json.JSONDecodeError as e:
+        if debug:
+            print(f"[DEBUG] JSON decode error at position {e.pos}: {e.msg}")
+            print(f"[DEBUG] Problematic section: {sub_expr_str[max(0, e.pos-50):e.pos+50]}")
+    except Exception as e:
+        if debug:
+            print(f"[DEBUG] Unexpected parse error: {type(e).__name__}: {str(e)}")
+    return None
+
+
+def extract_pass_snapshots_from_log(log_file_path: str, debug: bool = False) -> list[dict]:
+    """
+    Extract per-iteration end-of-pass snapshots for forward/inverse passes.
+        Returns a list of dict rows with keys:
+            iteration, phase, edp, execution_time_ns, clk_period_ns, delay_cycles, energy_pj
+            (physical_area_um2 is injected later per benchmark from codesign_pd.log)
+    """
+    snapshots = []
+
+    if not os.path.exists(log_file_path):
+        return snapshots
+
+    with open(log_file_path, 'r') as f:
+        content = f.read()
+
+    checkpoint_pattern = re.compile(r"CHECKPOINT REACHED: .*? FOR ITERATION: (\d+)")
+    pass_pattern = re.compile(
+        r"after\s+(forward|inverse)\s+pass\s+edp:\s*([\d.eE+-]+),\s*sub expressions:\s*",
+        re.IGNORECASE | re.DOTALL,
+    )
+
+    checkpoint_positions = []
+    checkpoint_iterations = []
+    for cp in checkpoint_pattern.finditer(content):
+        checkpoint_positions.append(cp.start())
+        checkpoint_iterations.append(int(cp.group(1)))
+
+    for match in pass_pattern.finditer(content):
+        phase = match.group(1).lower()
+        edp_raw = match.group(2)
+        edp = None
+        try:
+            edp = float(edp_raw)
+        except ValueError:
+            if debug:
+                print(f"[DEBUG] Could not parse EDP value '{edp_raw}'")
+
+        insertion_idx = bisect.bisect_right(checkpoint_positions, match.start()) - 1
+        iteration = checkpoint_iterations[insertion_idx] if insertion_idx >= 0 else None
+
+        dict_str = _extract_braced_dict(content, match.end())
+        if dict_str is None:
+            if debug:
+                print(f"[DEBUG] Could not extract sub expressions dict for {phase} at pos {match.start()}")
+            continue
+
+        sub_expr_dict = _parse_sub_expression_dict(dict_str, debug=debug)
+        if sub_expr_dict is None:
+            if debug:
+                print(f"[DEBUG] Could not parse sub expressions dict for {phase} at pos {match.start()}")
+            continue
+
+        execution_time_ns = sub_expr_dict.get('execution_time', None)
+        clk_period_ns = sub_expr_dict.get('clk_period', None)
+        total_energy = sub_expr_dict.get('total energy', None)
+
+        delay_cycles = None
+        if isinstance(execution_time_ns, (int, float)) and isinstance(clk_period_ns, (int, float)) and clk_period_ns != 0:
+            delay_cycles = execution_time_ns / clk_period_ns
+
+        energy_pj = total_energy * 1000 if isinstance(total_energy, (int, float)) else None
+
+        snapshots.append(
+            {
+                "iteration": iteration,
+                "phase": phase,
+                "edp": edp,
+                "execution_time_ns": execution_time_ns,
+                "clk_period_ns": clk_period_ns,
+                "delay_cycles": delay_cycles,
+                "energy_pj": energy_pj,
+            }
+        )
+
+    return snapshots
+
+
 # New helper: parse benchmark base name and workload tag (e.g., N16)
 def _parse_benchmark_base_and_workload(benchmark_dir_name: str, parent_dir_name: str):
     # parent_dir_name: e.g., "forwardpass_sweep_N16"
@@ -213,6 +342,65 @@ def _find_run_log(benchmark_path: str, debug: bool = False) -> str | None:
                         if debug:
                             print(f"[DEBUG]   Using fallback log file: {p}")
                         return p
+    return None
+
+
+def _find_pd_log(benchmark_path: str, debug: bool = False) -> str | None:
+    # Prefer direct pd/codesign_pd.log locations under tmp kernels
+    tmp_dir = os.path.join(benchmark_path, 'tmp')
+    if os.path.isdir(tmp_dir):
+        for root, dirs, files in os.walk(tmp_dir):
+            if 'codesign_pd.log' in files and os.path.basename(root) == 'pd':
+                p = os.path.join(root, 'codesign_pd.log')
+                if debug:
+                    print(f"[DEBUG]   Found codesign_pd.log: {p}")
+                return p
+
+    # Fallback: any codesign_pd.log under benchmark path
+    for root, dirs, files in os.walk(benchmark_path):
+        if 'codesign_pd.log' in files:
+            p = os.path.join(root, 'codesign_pd.log')
+            if debug:
+                print(f"[DEBUG]   Found fallback codesign_pd.log: {p}")
+            return p
+
+    return None
+
+
+def extract_area_from_pd_log(pd_log_file_path: str, debug: bool = False):
+    """
+    Extract physical area (um^2) from OpenROAD codesign_pd.log.
+    Priority:
+      1) [INFO GPL-0016] Core area: <val> um^2
+      2) Floorplan area: <val>
+      3) Area of std cell instances + Area of macros: <val>
+    Returns a float area in um^2, or None if not found.
+    """
+    if not pd_log_file_path or not os.path.exists(pd_log_file_path):
+        return None
+
+    with open(pd_log_file_path, 'r') as f:
+        content = f.read()
+
+    patterns = [
+        r"\[INFO\s+GPL-0016\]\s+Core area:\s*([\d.eE+-]+)\s*um\^2",
+        r"Floorplan area:\s*([\d.eE+-]+)",
+        r"Area of std cell instances \+ Area of macros:\s*([\d.eE+-]+)",
+    ]
+
+    for pat in patterns:
+        match = re.search(pat, content, re.IGNORECASE)
+        if match:
+            try:
+                value = float(match.group(1))
+                if debug:
+                    print(f"[DEBUG]   Parsed physical area from PD log: {value} um^2")
+                return value
+            except (ValueError, TypeError):
+                continue
+
+    if debug:
+        print(f"[DEBUG]   Could not parse area from PD log: {pd_log_file_path}")
     return None
 
 def extract_benchmark_results(result_dir_path: str, debug: bool = False) -> dict:
@@ -297,11 +485,13 @@ def extract_benchmark_results(result_dir_path: str, debug: bool = False) -> dict
 
             # Log discovery
             log_file = _find_run_log(benchmark_path, debug=debug)
+            pd_log_file = _find_pd_log(benchmark_path, debug=debug)
 
             num_ops = 0
             execution_time = 0.0
             delay_cycles = 0.0
             energy_value = 0.0
+            pd_area_value = 0.0
 
             if mlir_file and os.path.exists(mlir_file):
                 if debug:
@@ -324,18 +514,36 @@ def extract_benchmark_results(result_dir_path: str, debug: bool = False) -> dict
                 if debug:
                     print(f"[DEBUG] No log file found under {benchmark_path}; energy/delay left at 0")
 
+            if pd_log_file:
+                parsed_area = extract_area_from_pd_log(pd_log_file, debug=debug)
+                pd_area_value = parsed_area if parsed_area is not None else 0.0
+            elif debug:
+                print(f"[DEBUG] No codesign_pd.log found under {benchmark_path}; physical area left at 0")
+
             metrics = {
                 "NumberOfMLIROps": {"value": num_ops, "unit": "ops"},
                 "Energy": {"value": energy_value, "unit": "pJ"},
                 "delayCycles": {"value": delay_cycles, "unit": "cycles"},
                 "executionTime": {"value": execution_time, "unit": "ns"},
+                "PhysicalArea": {"value": pd_area_value, "unit": "um^2"},
             }
+
+            if log_file:
+                snapshots = extract_pass_snapshots_from_log(log_file, debug=debug)
+                for snap in snapshots:
+                    snap["physical_area_um2"] = pd_area_value
+                metrics["snapshots"] = snapshots
+            else:
+                metrics["snapshots"] = []
 
             if base_name not in results:
                 results[base_name] = {}
             results[base_name][workload_tag] = metrics
 
-            print(f"Processed {base_name} [{workload_tag}]: {num_ops} ops, {delay_cycles:.2f} cycles, {energy_value:.2f} pJ, {execution_time:.2f} ns")
+            print(
+                f"Processed {base_name} [{workload_tag}]: {num_ops} ops, {delay_cycles:.2f} cycles, "
+                f"{energy_value:.2f} pJ, {execution_time:.2f} ns, physical area={pd_area_value:.2f} um^2"
+            )
 
     return results
 
@@ -347,7 +555,7 @@ def print_results_table(benchmark_data: dict):
         print("No benchmark data to display")
         return
 
-    headers = ["Benchmark", "Workload", "MLIR Ops", "Energy (pJ)", "Delay Cycles", "Exec Time (ns)"]
+    headers = ["Benchmark", "WorkloadSize", "MLIR Ops", "Energy (pJ)", "Delay Cycles", "Exec Time (ns)", "Phys Area (um^2)"]
     col_widths = [len(h) for h in headers]
 
     rows = []
@@ -365,6 +573,7 @@ def print_results_table(benchmark_data: dict):
         col_widths[3] = max(col_widths[3], len(f"{m['Energy']['value']:.2f}"))
         col_widths[4] = max(col_widths[4], len(f"{m['delayCycles']['value']:.2f}"))
         col_widths[5] = max(col_widths[5], len(f"{m['executionTime']['value']:.2f}"))
+        col_widths[6] = max(col_widths[6], len(f"{m.get('PhysicalArea', {}).get('value', 0.0):.2f}"))
 
     col_widths = [w + 2 for w in col_widths]
     header_row = " | ".join(h.ljust(col_widths[i]) for i, h in enumerate(headers))
@@ -384,6 +593,7 @@ def print_results_table(benchmark_data: dict):
             f"{m['Energy']['value']:.2f}".rjust(col_widths[3]),
             f"{m['delayCycles']['value']:.2f}".rjust(col_widths[4]),
             f"{m['executionTime']['value']:.2f}".rjust(col_widths[5]),
+            f"{m.get('PhysicalArea', {}).get('value', 0.0):.2f}".rjust(col_widths[6]),
         ]
         print(" | ".join(row))
 
@@ -395,16 +605,18 @@ def print_results_table(benchmark_data: dict):
         total_energy = sum(m['Energy']['value'] for _, _, m in rows)
         avg_delay = sum(m['delayCycles']['value'] for _, _, m in rows) / len(rows)
         avg_exec_time = sum(m['executionTime']['value'] for _, _, m in rows) / len(rows)
+        avg_phys_area = sum(m.get('PhysicalArea', {}).get('value', 0.0) for _, _, m in rows) / len(rows)
         print(f"\nSummary Statistics:")
         print(f"  Total MLIR Operations: {total_ops:,}")
         print(f"  Total Energy: {total_energy:.2f} pJ")
         print(f"  Average Delay Cycles: {avg_delay:.2f}")
         print(f"  Average Execution Time: {avg_exec_time:.2f} ns")
+        print(f"  Average Physical Area: {avg_phys_area:.2f} um^2")
     print("=" * len(header_row) + "\n")
 
 def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = False):
     """
-    Save nested results with explicit Workload column.
+    Save nested results with explicit WorkloadSize column.
     """
     if not benchmark_data:
         if debug:
@@ -420,11 +632,12 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
     with open(csv_path, 'w', newline='') as csvfile:
         fieldnames = [
             'Benchmark',
-            'Workload',
+            'WorkloadSize',
             'NumberOfMLIROps (ops)',
             'Energy (pJ)',
             'delayCycles (cycles)',
-            'executionTime (ns)'
+            'executionTime (ns)',
+            'PhysicalArea (um^2)'
         ]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
@@ -434,24 +647,130 @@ def save_results_to_csv(benchmark_data: dict, output_dir: str, debug: bool = Fal
                 for wl, m in variants.items():
                     writer.writerow({
                         'Benchmark': base,
-                        'Workload': wl,
+                        'WorkloadSize': wl,
                         'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
                         'Energy (pJ)': m['Energy']['value'],
                         'delayCycles (cycles)': m['delayCycles']['value'],
-                        'executionTime (ns)': m['executionTime']['value']
+                        'executionTime (ns)': m['executionTime']['value'],
+                        'PhysicalArea (um^2)': m.get('PhysicalArea', {}).get('value', 0.0)
                     })
             else:
                 m = variants
                 writer.writerow({
                     'Benchmark': base,
-                    'Workload': '',
+                    'WorkloadSize': '',
                     'NumberOfMLIROps (ops)': m['NumberOfMLIROps']['value'],
                     'Energy (pJ)': m['Energy']['value'],
                     'delayCycles (cycles)': m['delayCycles']['value'],
-                    'executionTime (ns)': m['executionTime']['value']
+                    'executionTime (ns)': m['executionTime']['value'],
+                    'PhysicalArea (um^2)': m.get('PhysicalArea', {}).get('value', 0.0)
                 })
 
     print(f"Results saved to CSV: {csv_path}")
+
+def save_results_to_json(benchmark_data: dict, output_dir: str, debug: bool = False):
+    """
+    Save results as JSON in the same output directory as CSV.
+    """
+    if not benchmark_data:
+        if debug:
+            print(f"[DEBUG] No benchmark data to save to JSON")
+        return
+
+    json_filename = "benchmark_results.json"
+    json_path = os.path.join(output_dir, json_filename)
+    if debug:
+        print(f"[DEBUG] Saving JSON to: {json_path}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(json_path, 'w') as jsonfile:
+        json.dump(benchmark_data, jsonfile, indent=2)
+
+    print(f"Results saved to JSON: {json_path}")
+
+
+def save_iteration_snapshots_to_csv(benchmark_data: dict, output_dir: str, debug: bool = False):
+    """
+    Save per-iteration forward/inverse snapshots to CSV.
+    """
+    csv_filename = "benchmark_iteration_snapshots.csv"
+    csv_path = os.path.join(output_dir, csv_filename)
+    if debug:
+        print(f"[DEBUG] Saving iteration snapshot CSV to: {csv_path}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    with open(csv_path, 'w', newline='') as csvfile:
+        fieldnames = [
+            'Benchmark',
+            'WorkloadSize',
+            'Iteration',
+            'Phase',
+            'EDP (nJ*ns)',
+            'Energy (pJ)',
+            'delayCycles (cycles)',
+            'executionTime (ns)',
+            'clkPeriod (ns)',
+            'PhysicalArea (um^2)',
+        ]
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for base, variants in benchmark_data.items():
+            if not isinstance(variants, dict):
+                continue
+            for wl, metrics in variants.items():
+                for snap in metrics.get('snapshots', []):
+                    writer.writerow({
+                        'Benchmark': base,
+                        'WorkloadSize': wl,
+                        'Iteration': '' if snap.get('iteration') is None else snap.get('iteration'),
+                        'Phase': snap.get('phase', ''),
+                        'EDP (nJ*ns)': '' if snap.get('edp') is None else snap.get('edp'),
+                        'Energy (pJ)': '' if snap.get('energy_pj') is None else snap.get('energy_pj'),
+                        'delayCycles (cycles)': '' if snap.get('delay_cycles') is None else snap.get('delay_cycles'),
+                        'executionTime (ns)': '' if snap.get('execution_time_ns') is None else snap.get('execution_time_ns'),
+                        'clkPeriod (ns)': '' if snap.get('clk_period_ns') is None else snap.get('clk_period_ns'),
+                        'PhysicalArea (um^2)': '' if snap.get('physical_area_um2') is None else snap.get('physical_area_um2'),
+                    })
+
+    print(f"Iteration snapshots saved to CSV: {csv_path}")
+
+
+def save_iteration_snapshots_to_json(benchmark_data: dict, output_dir: str, debug: bool = False):
+    """
+    Save per-iteration forward/inverse snapshots to JSON.
+    """
+    json_filename = "benchmark_iteration_snapshots.json"
+    json_path = os.path.join(output_dir, json_filename)
+    if debug:
+        print(f"[DEBUG] Saving iteration snapshot JSON to: {json_path}")
+    os.makedirs(output_dir, exist_ok=True)
+
+    snapshots = []
+    for base, variants in benchmark_data.items():
+        if not isinstance(variants, dict):
+            continue
+        for wl, metrics in variants.items():
+            for snap in metrics.get('snapshots', []):
+                snapshots.append(
+                    {
+                        'Benchmark': base,
+                        'WorkloadSize': wl,
+                        'Iteration': snap.get('iteration'),
+                        'Phase': snap.get('phase'),
+                        'EDP (nJ*ns)': snap.get('edp'),
+                        'Energy (pJ)': snap.get('energy_pj'),
+                        'delayCycles (cycles)': snap.get('delay_cycles'),
+                        'executionTime (ns)': snap.get('execution_time_ns'),
+                        'clkPeriod (ns)': snap.get('clk_period_ns'),
+                        'PhysicalArea (um^2)': snap.get('physical_area_um2'),
+                    }
+                )
+
+    with open(json_path, 'w') as jsonfile:
+        json.dump(snapshots, jsonfile, indent=2)
+
+    print(f"Iteration snapshots saved to JSON: {json_path}")
 
 def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = False):
     """
@@ -495,6 +814,7 @@ def save_results_to_latex(benchmark_data: dict, output_dir: str, debug: bool = F
         ("Energy", "Energy", "pJ"),
         ("delayCycles", "Delay Cycles", "cycles"),
         ("executionTime", "Execution Time", r"$\mu$s"),  # Changed to LaTeX macro
+        ("PhysicalArea", "Physical Area", r"$\mu$m$^2$"),
     ]
     
     for metric_key, metric_label, metric_unit in metrics:
@@ -660,6 +980,13 @@ if __name__ == "__main__":
     
     # Save to CSV in the input directory
     save_results_to_csv(benchmark_data, csv_output_dir, debug=args.debug)
+
+    # Save to JSON in the input directory
+    save_results_to_json(benchmark_data, csv_output_dir, debug=args.debug)
+
+    # Save per-iteration pass snapshots in the input directory
+    save_iteration_snapshots_to_csv(benchmark_data, csv_output_dir, debug=args.debug)
+    save_iteration_snapshots_to_json(benchmark_data, csv_output_dir, debug=args.debug)
     
     # Save to LaTeX in the input directory
     save_results_to_latex(benchmark_data, csv_output_dir, debug=args.debug)

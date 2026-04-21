@@ -2,21 +2,49 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-torch.set_default_tensor_type(torch.BFloat16Tensor) # Otherwise it may not fit into memory.
+device = "cpu"
+# Use a CPU-friendly default dtype for torch-mlir export stability.
+torch.set_default_dtype(torch.float32)
 
-DIM = 4096 # Llama3 Table 3.
-FFN_DIM = 14336 # For POSITION-WISE FEED-FORWARD NETWORK (FFN) Llama Table 3
-N_LAYERS = 32 # Llama3 Table 3.
-N_HEADS = 32 # Llama3 Table 3.
-N_KV_HEADS = 8 # With 8 key-value heads to improve inference speed and to reduce the size (llama3)
-VOCAB_SIZE = 128256 # Llama3 vocab size. Llama3 paper says 128K. This is the exact number taken from tokenizer.
+# Reduced config for StreamHLS memory limits.
+DIM = 256
+FFN_DIM = 1024
+N_LAYERS = 4
+N_HEADS = 4
+N_KV_HEADS = 2
+VOCAB_SIZE = 32000
 NORM_EPS = 1e-5 # Took from Llama3 code ModelArgs.
 ROPE_THETA = 500000 # We increase the RoPE base frequency hyperparameter to 500,000 (llama3)
 MAX_BATCH_SIZE = 4 # Just optional depending on your specs. If number of examples you provide is smaller, it takes it as batch size.
-MAX_SEQ_LEN = 128 # Just optional depending on your specs.
+MAX_SEQ_LEN = 64 # Keep small to reduce MLIR size.
 N_KV_HEAD_REP = N_HEADS // N_KV_HEADS # How many times you repeat KV to match your queries(N_HEADS).
 HEAD_DIM = DIM // N_HEADS # Divide dimension by number of heads to get dimension per head.
+
+# Rotary embedding helpers (minimal, Torch-only)
+def precompute_freqs_cis(dim, end, theta=10000.0):
+    freqs = 1.0 / (theta ** (torch.arange(0, dim, 2, device=device).float() / dim))
+    t = torch.arange(end, device=device).float()
+    freqs = torch.outer(t, freqs)
+    return torch.cos(freqs), torch.sin(freqs)
+
+
+def apply_rotary_emb(xq, xk, freqs_cos, freqs_sin):
+    # xq/xk: (bsz, seqlen, n_heads, head_dim)
+    bsz, seqlen, _, head_dim = xq.shape
+    cos = freqs_cos[:seqlen].to(xq.device).unsqueeze(0).unsqueeze(2)
+    sin = freqs_sin[:seqlen].to(xq.device).unsqueeze(0).unsqueeze(2)
+
+    xq_even, xq_odd = xq[..., 0::2], xq[..., 1::2]
+    xk_even, xk_odd = xk[..., 0::2], xk[..., 1::2]
+
+    xq_rot_even = xq_even * cos - xq_odd * sin
+    xq_rot_odd = xq_even * sin + xq_odd * cos
+    xk_rot_even = xk_even * cos - xk_odd * sin
+    xk_rot_odd = xk_even * sin + xk_odd * cos
+
+    xq_out = torch.stack((xq_rot_even, xq_rot_odd), dim=-1).reshape(bsz, seqlen, -1, head_dim)
+    xk_out = torch.stack((xk_rot_even, xk_rot_odd), dim=-1).reshape(bsz, seqlen, -1, head_dim)
+    return xq_out.type_as(xq), xk_out.type_as(xk)
 
 # Apply pre-normalization using RMSNorm (llama2)
 class RMSNorm(torch.nn.Module):
@@ -79,36 +107,31 @@ class Attention(nn.Module):
         keys = keys.view(bsz, seqlen, N_KV_HEADS, HEAD_DIM)
         values = values.view(bsz, seqlen, N_KV_HEADS, HEAD_DIM)
 
-        queries, keys = apply_rotary_emb(queries, keys, freqs_cis=freqs_cis)
+        queries, keys = apply_rotary_emb(queries, keys, freqs_cos=freqs_cis[0], freqs_sin=freqs_cis[1])
 
-        self.cache_k = self.cache_k.to(queries.device)
-        self.cache_v = self.cache_v.to(queries.device)
-
-        self.cache_k[:bsz, start_pos : start_pos + seqlen] = keys
-        self.cache_v[:bsz, start_pos : start_pos + seqlen] = values
-
-        keys = self.cache_k[:bsz, : start_pos + seqlen]
-        values = self.cache_v[:bsz, : start_pos + seqlen]
+        # Disable KV cache for torch-mlir compatibility; use current keys/values only.
+        # This keeps the model traceable without mutable buffer ops.
+        keys = keys
+        values = values
 
         # In these runs we simply duplicated the KV heads for MQA in all GPUs. (llama2)
-        keys = torch.repeat_interleave(
-            keys, dim=2, repeats=N_KV_HEAD_REP
-        ) # (bsz, seqlen, N_KV_HEADS, HEAD_DIM) -> (bsz, seqlen, N_HEADS, HEAD_DIM)
-        values = torch.repeat_interleave(
-            values, dim=2, repeats=N_KV_HEAD_REP
-        )  # (bsz, seqlen, N_KV_HEADS, HEAD_DIM) -> (bsz, seqlen, N_HEADS, HEAD_DIM)
+        keys = keys.repeat(1, 1, N_KV_HEAD_REP, 1)
+        # (bsz, seqlen, N_KV_HEADS, HEAD_DIM) -> (bsz, seqlen, N_HEADS, HEAD_DIM)
+        values = values.repeat(1, 1, N_KV_HEAD_REP, 1)
+        # (bsz, seqlen, N_KV_HEADS, HEAD_DIM) -> (bsz, seqlen, N_HEADS, HEAD_DIM)
 
         # Reshaping for scaled_dot_product_attention. (bsz, ..., seqlen, HEAD_DIM) expected.
         queries = queries.transpose(1, 2) # (bsz, seqlen, N_HEADS, HEAD_DIM) -> (bsz, N_HEADS, seqlen, HEAD_DIM)
         keys = keys.transpose(1, 2) # (bsz, seqlen, N_HEADS, HEAD_DIM) -> (bsz, N_HEADS, seqlen, HEAD_DIM)
         values = values.transpose(1, 2) # (bsz, seqlen, N_HEADS, HEAD_DIM) -> (bsz, N_HEADS, seqlen, HEAD_DIM)
 
-        out = F.scaled_dot_product_attention(
-            queries,
-            keys,
-            values,
-            attn_mask=mask,
-        ) # (bsz, N_HEADS, seqlen, HEAD_DIM)
+        # Manual scaled dot-product attention for torch-mlir compatibility
+        scale = 1.0 / (HEAD_DIM ** 0.5)
+        attn_scores = torch.matmul(queries, keys.transpose(-2, -1)) * scale
+        if mask is not None:
+            attn_scores = attn_scores + mask
+        attn_probs = torch.softmax(attn_scores.float(), dim=-1).type_as(queries)
+        out = torch.matmul(attn_probs, values)  # (bsz, N_HEADS, seqlen, HEAD_DIM)
         
         
         # If we don't use `contiguous` torch may complain.
@@ -149,11 +172,16 @@ class Transformer(nn.Module):
         )
 
     @torch.inference_mode()
-    def forward(self, tokens, start_pos):       
+    def forward(self, tokens, start_pos=0):       
         _bsz, seqlen = tokens.shape
         h = self.tok_embeddings(tokens) # (bsz, seqlen, DIM)
-        self.freqs_cis = self.freqs_cis.to(tokens.device)
-        freqs_cis = self.freqs_cis[start_pos : start_pos + seqlen]
+        freqs_cos, freqs_sin = self.freqs_cis
+        freqs_cos = freqs_cos.to(tokens.device)
+        freqs_sin = freqs_sin.to(tokens.device)
+        freqs_cis = (
+            freqs_cos[start_pos : start_pos + seqlen],
+            freqs_sin[start_pos : start_pos + seqlen],
+        )
 
         mask = None # When we take the tokens from the cached values (seqlen=1) we don't need any aditional mask.
         if seqlen > 1: # Because of KV Cache, we process only 1 token. However, the first run doesn't have any cache. So it has a seqlen > 1.

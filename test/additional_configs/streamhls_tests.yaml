@@ -1,0 +1,211 @@
+vitis_gemm_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_multi_head_self_attention_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    pytorch: True
+    min_dsp: 100
+    fixed_area_increase_pattern: True
+    solver: basic
+    arch_opt_pipeline: streamhls
+
+vitis_inference_streamhls_test:
+  base_cfg: vitis_test
+  args:
+    fixed_area_increase_pattern: True
+    solver: basic
+    min_dsp: 7680
+    benchmark: Inference
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_gemmv_test_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemmv
+    min_dsp: 50
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+  # Stream HLS tests
+vitis_streamhls_gemm_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True  
+    min_dsp: 13
+
+vitis_streamhls_gesummv_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: gesummv
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+vitis_streamhls_2mm_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: k2mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+vitis_streamhls_3mm_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: k3mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 15
+
+vitis_streamhls_atax_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: atax
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    arch_opt_pipeline: streamhls
+    min_dsp: 10
+
+vitis_streamhls_bicg_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: bicg
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+vitis_streamhls_mvt_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: mvt
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+vitis_streamhls_attention_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 40
+
+vitis_streamhls_aes_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: aes
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+vitis_streamhls_inference_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: Inference
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 100
+
+vitis_streamhls_transformer_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: Transformer
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 100
+
+vitis_streamhls_transformerkv_test: # not working yet
+  base_cfg: vitis_test
+  args:
+    benchmark: TransformerKV
+    arch_opt_pipeline: streamhls
+
+vitis_streamhls_bitnet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: bitnet
+    min_dsp: 100
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_streamhls_digitrec_sw_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: digitrec_sw
+    min_dsp: 100
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_streamhls_lenet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: lenet
+    pytorch: True
+    arch_opt_pipeline: streamhls
+    min_dsp: 100 
+    streamhls_opt_level: 4 ## disable top level optimization to avoid tool crash
+
+vitis_streamhls_llama_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: llama
+    min_dsp: 50
+    always_run_openroad: True # have seen a bug with reusing previous openroad result here, so just rerun
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    streamhls_opt_level: 1 ## disable optimization passes to avoid tool crash
+
+vitis_streamhls_mobilenet_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: mobilenet
+    pytorch: True
+    arch_opt_pipeline: streamhls
+
+vitis_streamhls_resnet_test:
+  base_cfg: vitis_test
+  args:
+    pytorch: True
+    benchmark: resnet18
+    arch_opt_pipeline: streamhls
+
+vitis_streamhls_sgd_sw_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: sgd_sw
+    min_dsp: 100
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_streamhls_backprop_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: backprop
+    min_dsp: 50 # not an optimized choice
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_streamhls_syr2k_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: syr2k
+    min_dsp: 50 # not an optimized choice
+    arch_opt_pipeline: streamhls
+    pytorch: True
+
+vitis_streamhls_doitgen_test:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_doitgen
+    min_dsp: 50
+    arch_opt_pipeline: streamhls
+    pytorch: True

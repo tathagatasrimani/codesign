@@ -1,0 +1,71 @@
+### SCALEHLS TESTS ###
+vitis_gemm_test_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: scalehls
+    num_iters: 1
+    stop_at_checkpoint: pd
+
+benchmark_2mm_test_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_2mm
+    arch_opt_pipeline: scalehls
+    num_iters: 1
+    stop_at_checkpoint: pd
+    min_dsp: 10
+
+benchmark_bicg_test_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_bicg
+    arch_opt_pipeline: scalehls
+    num_iters: 1
+    stop_at_checkpoint: pd
+    min_dsp: 50
+
+benchmark_3mm_test_scalehls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    arch_opt_pipeline: scalehls
+    num_iters: 1
+    stop_at_checkpoint: pd
+    min_dsp: 10
+
+### STREAMHLS TESTS ###
+vitis_gemm_test_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    num_iters: 1
+    stop_at_checkpoint: pd
+
+benchmark_3mm_test_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_3mm
+    arch_opt_pipeline: streamhls
+    num_iters: 1
+    stop_at_checkpoint: pd
+    min_dsp: 100
+
+benchmark_atax_test_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: kernel_atax
+    arch_opt_pipeline: streamhls
+    num_iters: 1
+    stop_at_checkpoint: netlist
+    min_dsp: 50
+
+vitis_multihead_self_attention_test_streamhls:
+  base_cfg: vitis_test
+  args:
+    benchmark: MultiHeadSelfAttention
+    arch_opt_pipeline: streamhls
+    num_iters: 1
+    stop_at_checkpoint: pd
+    min_dsp: 100
