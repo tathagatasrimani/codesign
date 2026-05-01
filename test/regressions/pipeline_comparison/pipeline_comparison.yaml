@@ -1,0 +1,88 @@
+# Pipeline comparison regression suite
+# Direct comparison between ScaleHLS and StreamHLS on the same benchmarks
+
+# GEMM comparison
+scalehls_gemm_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gemm
+    arch_opt_pipeline: scalehls
+    min_dsp: 13
+
+streamhls_gemm_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 13
+
+# GESUMMV comparison
+scalehls_gesummv_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gesummv
+    arch_opt_pipeline: scalehls
+    min_dsp: 18
+
+streamhls_gesummv_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gesummv
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+# K2MM comparison - StreamHLS only (ScaleHLS not supported for this benchmark)
+streamhls_k2mm_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k2mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+# K3MM comparison - StreamHLS only (ScaleHLS not supported for this benchmark)
+streamhls_k3mm_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k3mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 15
+
+# BICG comparison - StreamHLS only (ScaleHLS not supported for this benchmark)
+streamhls_bicg_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: bicg
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+# MVT comparison - StreamHLS only (ScaleHLS not supported for this benchmark)
+streamhls_mvt_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: mvt
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+# ATAx comparison - StreamHLS only (ScaleHLS not supported for this benchmark)
+streamhls_atax_cmp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: atax
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10

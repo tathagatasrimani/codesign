@@ -1,0 +1,136 @@
+# StreamHLS pipeline variations tests
+# Tests StreamHLS with different configurations and parameters
+
+# GEMM variations
+streamhls_gemm_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 13
+
+streamhls_gemm_pytorch_higher_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gemm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 50
+
+# GESUMMV variations
+streamhls_gesummv_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gesummv
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+streamhls_gesummv_lower_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: gesummv
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+# K2MM variations
+streamhls_k2mm_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k2mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+
+streamhls_k2mm_basic_solver:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k2mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 18
+    solver: basic
+
+# K3MM variations
+streamhls_k3mm_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k3mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 15
+
+streamhls_k3mm_higher_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: k3mm
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 30
+
+# BICG variations
+streamhls_bicg_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: bicg
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+streamhls_bicg_higher_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: bicg
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 20
+
+# MVT variations
+streamhls_mvt_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: mvt
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+streamhls_mvt_higher_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: mvt
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 25
+
+# ATAx variations
+streamhls_atax_pytorch:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: atax
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 10
+
+streamhls_atax_higher_dsp:
+  base_cfg: vitis_test
+  args:
+    stop_at_checkpoint: pd
+    benchmark: atax
+    arch_opt_pipeline: streamhls
+    pytorch: True
+    min_dsp: 30
