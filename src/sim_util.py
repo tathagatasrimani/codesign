@@ -349,7 +349,19 @@ def recursive_cfg_merge(model_cfgs, model_cfg_name):
 def get_module_map():
     module_map = {
         # from HLS IR
-        # from HLS IR
+        # #"add": "Add16",
+        # "fadd": "Add16",
+        # "dadd": "Add16",
+        # #"sub": "Sub16",
+        # "fsub": "Sub16",
+        # "dsub": "Sub16",
+        # "dmul": "Mult16",
+        # #"mul": "Mult16",
+        # "fmul": "Mult16",
+        # #"div": "FloorDiv16",
+        # "fdiv": "FloorDiv16",
+        # "ddiv": "FloorDiv16",
+
         "add": "Add16",
         "fadd": "Fpadd32",
         "dadd": "Fpadd64",
@@ -362,11 +374,22 @@ def get_module_map():
         "div": "FloorDiv16",
         "fdiv": "Fpdiv32",
         "ddiv": "Fpdiv64",
+        # "icmp": "Lt16",
+
         "lshr": "RShift16",
         "shl": "LShift16",
         "call": "Call",
 
-        # from MLIR (blackboxed arith ops)
+        # # from MLIR (blackboxed arith ops)
+        # "addf": "Add16",
+        # "subf": "Sub16",
+        # "mulf": "Mult16",
+        # "divf": "FloorDiv16",
+        # "addf_ctrl_chain": "Add16",
+        # "subf_ctrl_chain": "Sub16",
+        # "mulf_ctrl_chain": "Mult16",
+        # "divf_ctrl_chain": "FloorDiv16",
+
         "addf": "Fpadd32",
         "subf": "Fpsub32",
         "mulf": "Fpmul32",
@@ -376,6 +399,7 @@ def get_module_map():
         "subf_ctrl_chain": "Fpsub32",
         "mulf_ctrl_chain": "Fpmul32",
         "divf_ctrl_chain": "Fpdiv32",
+
         "exp_bb_ctrl_chain": "Exp16",
 
         # variable bitwidth - initial mapping to define modules
@@ -406,7 +430,7 @@ def get_module_map():
         "mulf_p2" : "Fpmul32_p2",
         "mulf_p4" : "Fpmul32_p4",
 
-        # # floating point variable bitwidth - initial mapping to define modules
+        # floating point variable bitwidth - initial mapping to define modules
         # "fadd16": "Fpadd16",
         # "fadd32": "Fpadd32",
         # "fadd64": "Fpadd64",
@@ -524,9 +548,8 @@ def get_var_module_map():
         # "Fpdiv32": [{"name" : "Fpdiv32"}, 
         #         {"name" : "Fpdiv32_rx2"}, 
         #         {"name" : "Fpdiv32_rx4"}],
-        # "Fpadd32": [{"name" : "Fpadd32"}, 
-        #         {"name" : "Fpadd32_p2"}, 
-        #         {"name" : "Fpadd32_p4"}],
+        "Fpadd32": [{"name" : "Fpadd32"}, 
+                {"name" : "Fpadd32_p2"}],
     }
     return module_map
 
@@ -534,6 +557,19 @@ def map_operator_types(full_netlist, latency):
     """
     Map the operator types in the netlist to standardized function names using module_map.
     """
+
+    # ORIGINAL
+
+    # module_map = get_module_map()
+    # for node in full_netlist:
+    #     raw_fn = full_netlist.nodes[node].get('bind', {}).get('fcode')
+    #     if raw_fn is None:
+    #         raw_fn = "N/A"
+    #     full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
+    # return full_netlist
+
+    # NEWEST
+
     module_map = get_module_map()
     bw_module_map = get_var_bw_module_map()
     # pipe_cycles_map = get_module_pipe_cycles()
@@ -555,7 +591,7 @@ def map_operator_types(full_netlist, latency):
         if raw_fn is None:
             raw_fn = "N/A"
         
-        
+        # full_netlist.nodes[node]['function'] = module_map[raw_fn] if raw_fn in module_map else raw_fn
         # Bitwidth variation
         if raw_fn in module_map:
             raw_fn_val = module_map[raw_fn]

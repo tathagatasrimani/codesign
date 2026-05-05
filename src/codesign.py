@@ -576,6 +576,9 @@ class Codesign:
             print(f"The current dsp used in the iteration is: {self.cur_dsp_usage}")
 
         # I don't think "100MHz" has any meaning because scaleHLS should be agnostic to frequency
+        # config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Add16"] / self.clk_period)
+        # config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Mult16"] / self.clk_period)
+        # config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["FloorDiv16"] / self.clk_period)
         config["100MHz"]["fadd"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpadd32"] / self.clk_period)
         config["100MHz"]["fmul"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpmul32"] / self.clk_period)
         config["100MHz"]["fdiv"] = math.ceil(self.hw.circuit_model.circuit_values["latency"]["Fpdiv32"] / self.clk_period)
