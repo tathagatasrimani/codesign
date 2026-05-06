@@ -9,10 +9,44 @@ from math import sqrt
 import subprocess
 import threading
 import time
+from typing import Optional
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def log_codesign_timing(phase: str, elapsed_sec: float) -> None:
+    """Wall-clock timing line for grep CODESIGN_TIMING in codesign.log."""
+    logger.info(f"CODESIGN_TIMING phase={phase} elapsed_sec={elapsed_sec:.6f}")
+
+
+def relog_codesign_timing_from_pd_log(pd_log_path: str) -> None:
+    """
+    Copy CODESIGN_TIMING lines from OpenROAD's codesign_pd.log into the Python logger
+    so they appear in the consolidated flow log (e.g. codesign.log).
+    """
+    logger.info(
+        "=== OpenROAD phase timings (relogged from codesign_pd.log) ==="
+    )
+    try:
+        with open(pd_log_path, "r", errors="replace") as f:
+            lines = f.readlines()
+    except OSError as e:
+        logger.warning(
+            "CODESIGN_TIMING_BATCH: could not read %s for timing rollup: %s",
+            pd_log_path,
+            e,
+        )
+        return
+    timing_lines = [ln.strip() for ln in lines if "CODESIGN_TIMING" in ln]
+    if not timing_lines:
+        logger.info(
+            "CODESIGN_TIMING_BATCH source=codesign_pd_log count=0 (no Tcl timing lines found)"
+        )
+        return
+    for ln in timing_lines:
+        logger.info(ln)
 
 import networkx as nx
 
@@ -35,6 +69,13 @@ def log_info(msg):
 def log_warning(msg):
     if DEBUG:
         logger.warning(msg)
+
+
+def _base_lef_for_component_function_map(component_name: str) -> str:
+    """Map Add16__lo / Add16__hi LEF names to logical keys in component_to_function."""
+    if component_name.endswith("__lo") or component_name.endswith("__hi"):
+        return component_name.rsplit("__", 1)[0]
+    return component_name
 
 MAX_TRACTABLE_AREA_DBU = 6e13
 
@@ -67,6 +108,13 @@ class OpenRoadRun:
         self.subdirectory = subdirectory
         self.custom_lef_files_to_include = custom_lef_files_to_include
         self.top_level = top_level
+        self.use_hierarchical_placer = True
+        if isinstance(self.cfg, dict):
+            args_dict = self.cfg.get("args")
+            if isinstance(args_dict, dict) and "use_hierarchical_placer" in args_dict:
+                v = args_dict["use_hierarchical_placer"]
+                # None/absent after merge should keep default True; YAML false must win over CLI default=None.
+                self.use_hierarchical_placer = True if v is None else bool(v)
 
         ## results will be placed here. This is necessary for running the flow hierarchically. 
         if subdirectory is not None:
@@ -176,17 +224,23 @@ class OpenRoadRun:
         """
 
         old_graph = copy.deepcopy(graph)
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, _, _ = self.setup_set_area_constraint(graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, _, _ = self.setup_set_area_constraint(
+            graph, test_file, area_constraint, L_eff, timing_pass_tag="pass1"
+        )
 
         area_constraint_old = area_constraint
         logger.info(f"Max dimension macro: {max_dim_macro}, corresponding area constraint value: {max_dim_macro**2}")
         logger.info(f"Estimated area: {area_estimate}")
         area_constraint = int(max(area_estimate, max_dim_macro**2)/TARGET_UTILIZATION)
         logger.info(f"Info: Final estimated area {area_estimate} compared to area constraint {area_constraint_old}. Area constraint will be scaled from {area_constraint_old} to {area_constraint}.")
-        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, macro_size_dict, node_to_macro = self.setup_set_area_constraint(old_graph, test_file, area_constraint, L_eff)
+        graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, max_dim_macro, macro_dict, dbu_area_estimate, macro_size_dict, node_to_macro = self.setup_set_area_constraint(
+            old_graph, test_file, area_constraint, L_eff, timing_pass_tag="pass2"
+        )
 
+        t_lib = time.perf_counter()
         lib_cell_generator = LibCellGenerator()
         lib_cell_generator.generate_and_write_cells(macro_dict, self.circuit_model, self.directory + "/tcl/codesign_files/codesign_typ.lib")
+        log_codesign_timing("lib_cell_generator", time.perf_counter() - t_lib)
 
         self.update_clock_period(self.directory + "/tcl/codesign_files/codesign.sdc")
 
@@ -197,61 +251,96 @@ class OpenRoadRun:
         # node_to_macro has: node_name -> [macro_lef_name, {input: [...], output: [...], ...}]
         node_to_macro_name = {node: info[0] for node, info in node_to_macro.items()}
 
-        # Core from TCL. Die: prefer DEF (what OpenROAD loads); TCL can drift if results
-        # were partially refreshed or copied between runs.
-        core_area = self._read_core_area_from_tcl()
-        tcl_die = self._read_die_area_from_tcl()
-        die_area = self._read_die_area_from_def() or tcl_die
-        if die_area and tcl_die:
-            if any(abs(die_area[i] - tcl_die[i]) > 0.5 for i in range(4)):
-                logger.warning(
-                    "Die rectangle from first_generated.def differs from codesign_top.tcl "
-                    f"(def={die_area}, tcl={tcl_die}); using DEF for hierarchical die clamp."
+        if not self.use_hierarchical_placer:
+            logger.info(
+                "Hierarchical placer disabled (use_hierarchical_placer=False); "
+                "OpenROAD will use rtl_macro_placer."
+            )
+            hp_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
+            try:
+                if os.path.isfile(hp_path):
+                    os.remove(hp_path)
+            except OSError as e:
+                logger.warning("Could not remove %s: %s", hp_path, e)
+        else:
+            # Core from TCL. Die: prefer DEF (what OpenROAD loads); TCL can drift if results
+            # were partially refreshed or copied between runs.
+            core_area = self._read_core_area_from_tcl()
+            tcl_die = self._read_die_area_from_tcl()
+            die_area = self._read_die_area_from_def() or tcl_die
+            if die_area and tcl_die:
+                if any(abs(die_area[i] - tcl_die[i]) > 0.5 for i in range(4)):
+                    logger.warning(
+                        "Die rectangle from first_generated.def differs from codesign_top.tcl "
+                        f"(def={die_area}, tcl={tcl_die}); using DEF for hierarchical die clamp."
+                    )
+
+            if core_area is not None and len(macro_size_dict) > 0:
+                t_hp = time.perf_counter()
+                # Build the FU-level subgraph (only nodes that have LEF macros)
+                fu_nodes = set(node_to_macro_name.keys())
+                fu_graph = graph.subgraph(
+                    [n for n in graph.nodes() if n in fu_nodes]
+                ).copy()
+
+                macro_count = len(fu_graph.nodes())
+
+                logger.info(
+                    f"Hierarchical placer macros={macro_count}, "
+                    f"core_area={core_area}, die_area={die_area}"
                 )
 
-        if core_area is not None and len(macro_size_dict) > 0:
-            # Build the FU-level subgraph (only nodes that have LEF macros)
-            fu_nodes = set(node_to_macro_name.keys())
-            fu_graph = graph.subgraph(
-                [n for n in graph.nodes() if n in fu_nodes]
-            ).copy()
+                hp_kw = {}
+                if isinstance(self.cfg, dict):
+                    ad = self.cfg.get("args")
+                    if isinstance(ad, dict):
+                        if ad.get("enable_small_macro_halo") is not None:
+                            hp_kw["enable_small_macro_halo"] = bool(
+                                ad["enable_small_macro_halo"]
+                            )
+                        if ad.get("hierarchical_macro_gap_um") is not None:
+                            hp_kw["macro_gap"] = float(ad["hierarchical_macro_gap_um"])
+                        if ad.get("placement_routing_area_scale") is not None:
+                            hp_kw["placement_routing_area_scale"] = float(
+                                ad["placement_routing_area_scale"]
+                            )
 
-            macro_count = len(fu_graph.nodes())
+                if isinstance(lef_data, dict):
+                    units = lef_data.get("units")
+                    if units is not None:
+                        hp_kw["dbu_per_micron"] = int(units)
 
-            logger.info(
-                f"Hierarchical placer macros={macro_count}, "
-                f"core_area={core_area}, die_area={die_area}"
-            )
+                placer = HierarchicalPlacer(
+                    graph=fu_graph,
+                    macro_size_dict=macro_size_dict,
+                    node_to_macro_name=node_to_macro_name,
+                    core_area=core_area,
+                    die_area=die_area,
+                    **hp_kw,
+                )
+                positions = placer.place()
 
-            placer = HierarchicalPlacer(
-                graph=fu_graph,
-                macro_size_dict=macro_size_dict,
-                node_to_macro_name=node_to_macro_name,
-                core_area=core_area,
-                die_area=die_area,
-            )
-            positions = placer.place()
-
-            if positions:
-                placement_tcl_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
-                # Only write TCL if we can map at least one placed node to a DEF component ID.
-                mapped_nodes = [n for n in positions.keys() if n in self.node_to_component_num]
-                if len(mapped_nodes) > 0:
-                    placer.write_placement_tcl(
-                        positions=positions,
-                        node_to_component_num=self.node_to_component_num,
-                        output_path=placement_tcl_path,
-                    )
-                    logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
+                if positions:
+                    placement_tcl_path = os.path.join(self.directory, "tcl", "hierarchical_placement.tcl")
+                    # Only write TCL if we can map at least one placed node to a DEF component ID.
+                    mapped_nodes = [n for n in positions.keys() if n in self.node_to_component_num]
+                    if len(mapped_nodes) > 0:
+                        placer.write_placement_tcl(
+                            positions=positions,
+                            node_to_component_num=self.node_to_component_num,
+                            output_path=placement_tcl_path,
+                        )
+                        logger.info(f"Hierarchical placement TCL written to {placement_tcl_path}")
+                    else:
+                        logger.info(
+                            "Hierarchical placer returned positions but no node mapped to DEF component IDs; "
+                            "skipping hierarchical macro TCL write."
+                        )
                 else:
-                    logger.info(
-                        "Hierarchical placer returned positions but no node mapped to DEF component IDs; "
-                        "skipping hierarchical macro TCL write."
-                    )
+                    logger.info("Hierarchical placer returned no positions; falling back to rtl_macro_placer.")
+                log_codesign_timing("hierarchical_placer", time.perf_counter() - t_hp)
             else:
-                logger.info("Hierarchical placer returned no positions; falling back to rtl_macro_placer.")
-        else:
-            logger.info("Skipping hierarchical placement (no core area or no macros).")
+                logger.info("Skipping hierarchical placement (no core area or no macros).")
 
         final_area = area_estimate
 
@@ -378,7 +467,8 @@ class OpenRoadRun:
         graph: nx.DiGraph,
         test_file: str,
         area_constraint: int,
-        L_eff: float
+        L_eff: float,
+        timing_pass_tag: Optional[str] = None,
     ):
         """
         This is a helper method that runs the setup for a single area constraint and provides an area estimate. 
@@ -389,7 +479,11 @@ class OpenRoadRun:
             area_constraint: area constraint for the placement. We will ensure that the final area constraint set to OpenROAD
                 achieves at least 60% utilization based on the estimated area from the def generator.
             L_eff: effective channel length used to scale the LEF files.
+            timing_pass_tag: if set (e.g. pass1, pass2), suffixes CODESIGN_TIMING phase names for this invocation.
         """
+
+        def _tp(base: str) -> str:
+            return f"{base}_{timing_pass_tag}" if timing_pass_tag else base
 
         logger.info("Setting up environment for place and route.")
         if self.run_openroad:
@@ -405,21 +499,52 @@ class OpenRoadRun:
         else:
             logger.info("Skipping setup, using previous openroad results.")
 
-        macro_maker = make_macros.MacroMaker(self.cfg, self.codesign_root_dir, self.tmp_dir, self.run_openroad, self.subdirectory, output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef", custom_lef_files_to_include=self.custom_lef_files_to_include)
+        # Stage 1: bias generated macro aspect (y/x) toward core height/width from TCL.
+        core_area_for_macros = self._read_core_area_from_tcl()
+        placement_core_aspect_hw = None
+        if core_area_for_macros is not None:
+            cw = float(core_area_for_macros[2] - core_area_for_macros[0])
+            ch = float(core_area_for_macros[3] - core_area_for_macros[1])
+            if cw > 1e-9 and ch > 0.0:
+                placement_core_aspect_hw = ch / cw
+                logger.info(
+                    "MacroMaker stage1: floorplan core height/width = %.4f um / %.4f um "
+                    "=> target macro aspect y/x = %.4f",
+                    ch,
+                    cw,
+                    placement_core_aspect_hw,
+                )
 
+        macro_maker = make_macros.MacroMaker(
+            self.cfg,
+            self.codesign_root_dir,
+            self.tmp_dir,
+            self.run_openroad,
+            self.subdirectory,
+            output_lef_file=self.directory + "/tcl/codesign_files/codesign_stdcell.lef",
+            custom_lef_files_to_include=self.custom_lef_files_to_include,
+            placement_core_aspect_hw=placement_core_aspect_hw,
+        )
+
+        t0 = time.perf_counter()
         macro_maker.create_all_macros()
+        log_codesign_timing(_tp("macro_maker"), time.perf_counter() - t0)
 
         self.update_area_constraint(area_constraint)
 
         self.do_scale_lef = scale_lef.ScaleLefFiles(self.cfg, self.codesign_root_dir, self.tmp_dir, self.subdirectory)
+        t0 = time.perf_counter()
         self.do_scale_lef.scale_lef_files(L_eff)
+        log_codesign_timing(_tp("scale_lef"), time.perf_counter() - t0)
 
         logger.info(f"Generating DEF file for {self.codesign_root_dir}/{self.tmp_dir}/{self.subdirectory}")
         df = def_generator.DefGenerator(self.cfg, self.codesign_root_dir, self.tmp_dir, self.do_scale_lef.NEW_database_units_per_micron, self.subdirectory)
 
+        t0 = time.perf_counter()
         graph, net_out_dict, node_output, lef_data, node_to_num, area_estimate, macro_dict, self.node_to_component_num, macro_size_dict, node_to_macro = df.run_def_generator(
             test_file, graph
         )
+        log_codesign_timing(_tp("def_generator"), time.perf_counter() - t0)
 
         dbu_area_estimate = area_estimate * (self.do_scale_lef.NEW_database_units_per_micron ** 2)
 
@@ -644,6 +769,7 @@ class OpenRoadRun:
                     env.get('LIBGL_ALWAYS_SOFTWARE'), env.get('QT_QPA_PLATFORM'), env.get('XAUTHORITY'))
         
         # Use subprocess to properly handle environment and output redirection
+        t_or = time.perf_counter()
         with open(log_file, 'w') as log:
             result = subprocess.run(
                 cmd,
@@ -653,7 +779,9 @@ class OpenRoadRun:
                 stdout=log,
                 stderr=subprocess.STDOUT
             )
-        
+        log_codesign_timing("openroad_subprocess", time.perf_counter() - t_or)
+        relog_codesign_timing_from_pd_log(log_file)
+
         # Copy snapshot from /tmp to results if it was written.
         #
         # Note: OpenROAD/Qt normalizes the output path via Qt's fixImagePath().
@@ -865,13 +993,16 @@ class OpenRoadRun:
                 break
             component_id = def_data[j].split()[1]
             component_name = def_data[j].split()[2]
-            if component_name not in self.component_to_function and "HIERMODULE" not in component_name:
-                log_info(f"Component {component_name} not found in component_to_function. Skipping.")
-                continue
             if "HIERMODULE" in component_name:
                 component_function = "Call"
             else:
-                component_function = self.component_to_function[component_name]
+                lookup = _base_lef_for_component_function_map(component_name)
+                if lookup not in self.component_to_function:
+                    log_info(
+                        f"Component {component_name} (lookup {lookup}) not found in component_to_function. Skipping."
+                    )
+                    continue
+                component_function = self.component_to_function[lookup]
             new_graph.add_node(component_id, function=component_function)
             log_info(f"Added node {component_id} with function {component_function}")
         for k in range(j+1, len(def_data)):

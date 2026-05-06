@@ -5,6 +5,7 @@ import os
 import copy
 import shutil
 import json
+import time
 from math import sqrt
 
 import logging
@@ -241,8 +242,12 @@ class OpenRoadRunHier:
         
         macro_maker_instance = macro_maker.MacroMaker(cfg=self.cfg, codesign_root_dir=self.codesign_root_dir, tmp_dir=self.tmp_dir, run_openroad=self.run_openroad, subdirectory=f"hier/{module_name}/pd",
                                                       output_lef_file=f"{macro_name}_macro.lef", area_list={f"{macro_name}": final_area}, pin_list={f"{macro_name}": {"input": 16, "output": 16}}, add_ending_text=False)
-        
+
+        t_mm = time.perf_counter()
         macro_maker_instance.create_all_macros()
+        openroad_run.log_codesign_timing(
+            f"macro_maker_hier_{module_name}", time.perf_counter() - t_mm
+        )
 
         ## write a pd_complete.note file to indicate that this module has been placed and routed.
         pd_complete_file = os.path.join(self.hier_pd_base_dir, module_name, "pd_complete.note")

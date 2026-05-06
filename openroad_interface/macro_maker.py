@@ -3,6 +3,7 @@ import math
 import copy
 import yaml
 import os
+from typing import Optional
 
 from .openroad_functions import find_val, clean, value
 
@@ -64,7 +65,20 @@ STD_CELL_VS_MACRO_CUTOFF = 0 ## in rows
 ######################################################################
 
 class MacroMaker:
-    def __init__(self, cfg, codesign_root_dir, tmp_dir, run_openroad, subdirectory=None, output_lef_file="generated_macros.lef", area_list = None, pin_list = None, add_ending_text = True, custom_lef_files_to_include=None):
+    def __init__(
+        self,
+        cfg,
+        codesign_root_dir,
+        tmp_dir,
+        run_openroad,
+        subdirectory=None,
+        output_lef_file="generated_macros.lef",
+        area_list=None,
+        pin_list=None,
+        add_ending_text=True,
+        custom_lef_files_to_include=None,
+        placement_core_aspect_hw: Optional[float] = None,
+    ):
         """Initializes the MacroMaker with optional area and pin lists.
 
         NOTE: MacroMaker assumes that the input LEF file is for 45nm technology node and that the area values are for 7nm technology node.
@@ -77,6 +91,9 @@ class MacroMaker:
             area_list (dict): A dictionary mapping macro names to their area values.
             pin_list (dict): A dictionary mapping macro names to their pin counts.
             add_ending_text (bool): Whether to add ending text to the output LEF file.
+            placement_core_aspect_hw (float | None): Floorplan height/width (microns), same
+                sense as macro ``y/x`` in ``find_best_aspect_ratio``. When set, macro designs
+                are scored toward this aspect (Stage 1 region-aware sizing).
 
         
         """
@@ -112,6 +129,11 @@ class MacroMaker:
 
         self.add_ending_text = add_ending_text
         self.custom_lef_files_to_include = custom_lef_files_to_include
+
+        if placement_core_aspect_hw is not None and placement_core_aspect_hw > 0.0:
+            self.target_aspect_ratio = float(placement_core_aspect_hw)
+        else:
+            self.target_aspect_ratio = float(TARGET_ASPECT_RATIO)
 
         # Track grid definitions (nm) extracted from your make_tracks commands.
         # You may later read this from tech.lef automatically if desired.
@@ -173,6 +195,10 @@ class MacroMaker:
         # iterates through all needed macros
         ref_tech_param = copy.deepcopy(self.area_list)
 
+        debug_print(
+            f"MacroMaker: target macro aspect y/x = {self.target_aspect_ratio:.4f} "
+            f"(floorplan-informed when set)"
+        )
         debug_print("ref_tech_param: ")
         for key, value in ref_tech_param.items():
             debug_print(f"  {key}: {value}")
@@ -204,17 +230,43 @@ class MacroMaker:
                 debug_print("no valid design for " + macro)
                 exit(1)
             else:
-                # successfully generated designs
-                # debug_print("Successfully generated designs for " + macro)
-                best1 = self.find_best_aspect_ratio(macro_design_list_1)
-                # debug_print(best1)
-                seventyfive_lef = self.generate_macro_lef(best1)
-                # debug_print("Generated LEF for " + macro + " with 25% aspect ratio")
-                # append generated LEF text to the configured output file
-                with open(self.output_lef_file_path, 'a') as f:
-                    for pin in seventyfive_lef:
-                        f.write(f"{pin}")
-                    f.write("END " + best1["name"] + "\n\n")
+                # Sort by macro aspect y/x (short-wide -> tall-narrow).
+                macro_design_list_1.sort(
+                    key=lambda d: d["y"] / max(float(d["x"]), 1e-9)
+                )
+                with open(self.output_lef_file_path, "a") as f:
+                    if len(macro_design_list_1) < 3:
+                        best1 = self.find_best_aspect_ratio(macro_design_list_1)
+                        d = copy.deepcopy(best1)
+                        d["name"] = macro
+                        lef_lines = self.generate_macro_lef(d)
+                        for pin in lef_lines:
+                            f.write(f"{pin}")
+                        f.write("END " + d["name"] + "\n\n")
+                    else:
+                        n = len(macro_design_list_1)
+                        i_lo, i_hi = 0, n - 1
+                        best_mid = self.find_best_aspect_ratio(macro_design_list_1)
+                        try:
+                            i_mid = macro_design_list_1.index(best_mid)
+                        except ValueError:
+                            i_mid = n // 2
+                        picks = [
+                            (macro_design_list_1[i_lo], macro + "__lo"),
+                            (macro_design_list_1[i_mid], macro),
+                            (macro_design_list_1[i_hi], macro + "__hi"),
+                        ]
+                        for design_src, out_name in picks:
+                            d = copy.deepcopy(design_src)
+                            d["name"] = out_name
+                            lef_lines = self.generate_macro_lef(d)
+                            for pin in lef_lines:
+                                f.write(f"{pin}")
+                            f.write("END " + d["name"] + "\n\n")
+                        debug_print(
+                            f"MacroMaker stage2: emitted variants for {macro}: "
+                            f"{macro}__lo, {macro}, {macro}__hi"
+                        )
         
         self.include_custom_lef_files()
         
@@ -373,15 +425,16 @@ class MacroMaker:
             debug_print("Pins do not fit in x-direction")
 
     def find_best_aspect_ratio(self, design_list):
-        best = design_list[0]["y"]/design_list[0]["x"]
+        target = self.target_aspect_ratio
+        best = design_list[0]["y"] / design_list[0]["x"]
         best_design = design_list[0]
         for item in design_list[1:]:
             y = item["y"]
             x = item["x"]
-            ratio = y/x
-            if abs(best - TARGET_ASPECT_RATIO) > abs(ratio - TARGET_ASPECT_RATIO):
+            ratio = y / x
+            if abs(best - target) > abs(ratio - target):
                 best = ratio
-                best_design = item 
+                best_design = item
         return best_design
 
 if __name__ == "__main__":

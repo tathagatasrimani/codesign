@@ -7,6 +7,19 @@
 #set_debug_level MPL boundary_push 1
 set_thread_count [expr [cpu_count] - 1]
 
+# Wall-clock timing for codesign.log rollup (Python relogs CODESIGN_TIMING lines from codesign_pd.log).
+proc codesign_time_phase {phase script} {
+  set t0 [clock microseconds]
+  set code [catch {uplevel 1 $script} res opts]
+  set t1 [clock microseconds]
+  set elapsed [expr {($t1 - $t0) / 1000000.0}]
+  puts "CODESIGN_TIMING phase=$phase elapsed_sec=$elapsed"
+  if {$code != 0} {
+    return -options $opts $res
+  }
+  return $res
+}
+
 # Placement snapshot helper (macros, pins, flywires) — before global routing
 source [file join [file dirname [info script]] "codesign_placement_snapshot.tcl"]
 
@@ -28,24 +41,28 @@ set hier_placement_tcl [file join $flow_dir "hierarchical_placement.tcl"]
 
 if {[file exists $hier_placement_tcl] && [file size $hier_placement_tcl] > 0} {
   puts "Using hierarchical macro placement"
-  source $hier_placement_tcl
+  codesign_time_phase macro_placement_hier {
+    source $hier_placement_tcl
+  }
 } else {
-  rtl_macro_placer \
-      -target_util 0.25 \
-      -target_dead_space 0.05 \
-      -min_ar 0.33 \
-      -area_weight 0.1 \
-      -outline_weight 100.0 \
-      -wirelength_weight 100.0 \
-      -guidance_weight 10.0 \
-      -fence_weight 10.0 \
-      -boundary_weight 50.0 \
-      -notch_weight 10.0 \
-      -macro_blockage_weight 10.0 \
-      -halo_width 10 \
-      -halo_height 10 \
-      -report_directory reports \
-      -write_macro_placement macro_place.tcl
+  codesign_time_phase macro_placement_rtl {
+    rtl_macro_placer \
+        -target_util 0.25 \
+        -target_dead_space 0.05 \
+        -min_ar 0.33 \
+        -area_weight 0.1 \
+        -outline_weight 100.0 \
+        -wirelength_weight 100.0 \
+        -guidance_weight 10.0 \
+        -fence_weight 10.0 \
+        -boundary_weight 50.0 \
+        -notch_weight 10.0 \
+        -macro_blockage_weight 10.0 \
+        -halo_width 10 \
+        -halo_height 10 \
+        -report_directory reports \
+        -write_macro_placement macro_place.tcl
+  }
 }
 
 # Lock macro positions by sourcing the generated macro placement file
@@ -63,18 +80,20 @@ eval tapcell $tapcell_args
 ################################################################
 # Global placement
 
-foreach layer_adjustment $global_routing_layer_adjustments {
-  lassign $layer_adjustment layer adjustment
-  set_global_routing_layer_adjustment $layer $adjustment
+codesign_time_phase global_placement {
+  foreach layer_adjustment $global_routing_layer_adjustments {
+    lassign $layer_adjustment layer adjustment
+    set_global_routing_layer_adjustment $layer $adjustment
+  }
+  set_routing_layers -signal $global_routing_layers \
+    -clock $global_routing_clock_layers
+  set_macro_extension 2
+
+  set ::env(REPLACE_SEED) 42
+
+  global_placement -routability_driven -density $global_place_density \
+    -pad_left $global_place_pad -pad_right $global_place_pad
 }
-set_routing_layers -signal $global_routing_layers \
-  -clock $global_routing_clock_layers
-set_macro_extension 2
-
-set ::env(REPLACE_SEED) 42
-
-global_placement -routability_driven -density $global_place_density \
-  -pad_left $global_place_pad -pad_right $global_place_pad
 
 # set thread count for all tools with support for multithreading.
 # set after global placement because it uses omp but generates
@@ -90,31 +109,33 @@ write_db $global_place_db
 
 ################################################################
 # Repair max slew/cap/fanout violations and normalize slews
-source $layer_rc_file
-set_wire_rc -signal -layer $wire_rc_layer
-set_wire_rc -clock  -layer $wire_rc_layer_clk
-set_dont_use $dont_use
+codesign_time_phase repair_and_dpl {
+  source $layer_rc_file
+  set_wire_rc -signal -layer $wire_rc_layer
+  set_wire_rc -clock  -layer $wire_rc_layer_clk
+  set_dont_use $dont_use
 
-estimate_parasitics -placement
+  estimate_parasitics -placement
 
-puts "INFO: starting repair design"
+  puts "INFO: starting repair design"
 
-# Set debug level for repair_design to see detailed buffer insertion logic
-# Level 1-3: higher number = more detailed output
-#set_debug_level RSZ repair_design 3
-#set_debug_level RSZ repair_net 3
-#set_debug_level RSZ early_sizing 3
-#set_debug_level RSZ memory 3
-#set_debug_level RSZ buffer_under_slew 3
-#set_debug_level RSZ resizer 3
+  # Set debug level for repair_design to see detailed buffer insertion logic
+  # Level 1-3: higher number = more detailed output
+  #set_debug_level RSZ repair_design 3
+  #set_debug_level RSZ repair_net 3
+  #set_debug_level RSZ early_sizing 3
+  #set_debug_level RSZ memory 3
+  #set_debug_level RSZ buffer_under_slew 3
+  #set_debug_level RSZ resizer 3
 
-repair_design -slew_margin $slew_margin -cap_margin $cap_margin
+  repair_design -slew_margin $slew_margin -cap_margin $cap_margin
 
-repair_tie_fanout -separation $tie_separation $tielo_port
-repair_tie_fanout -separation $tie_separation $tiehi_port
+  repair_tie_fanout -separation $tie_separation $tielo_port
+  repair_tie_fanout -separation $tie_separation $tiehi_port
 
-set_placement_padding -global -left $detail_place_pad -right $detail_place_pad
-detailed_placement -max_displacement 500
+  set_placement_padding -global -left $detail_place_pad -right $detail_place_pad
+  detailed_placement -max_displacement 500
+}
 
 ################################################################
 # Clock Tree Synthesis
@@ -192,7 +213,9 @@ set_routing_layers \
   -clock  $global_routing_clock_layers
 
 # Now pin access uses the above
-pin_access
+codesign_time_phase pin_access {
+  pin_access
+}
 
 set base_layer_adjustments $global_routing_layer_adjustments
 set route_attempt_scales {1.00 0.85 0.72 0.62}
@@ -201,44 +224,50 @@ set route_error ""
 set route_guide [make_result_file ${design}_${platform}.route_guide]
 set route_guide_attempt ""
 
-set attempt_idx 0
-foreach scale $route_attempt_scales {
-  incr attempt_idx
+codesign_time_phase global_route_all_attempts {
+  set attempt_idx 0
+  foreach scale $route_attempt_scales {
+    incr attempt_idx
 
-  foreach layer_adjustment $base_layer_adjustments {
-    lassign $layer_adjustment layer adjustment
-    set scaled_adjustment [expr {$adjustment * $scale}]
-    if {$scaled_adjustment < 0.15} {
-      set scaled_adjustment 0.15
+    foreach layer_adjustment $base_layer_adjustments {
+      lassign $layer_adjustment layer adjustment
+      set scaled_adjustment [expr {$adjustment * $scale}]
+      if {$scaled_adjustment < 0.15} {
+        set scaled_adjustment 0.15
+      }
+      set_global_routing_layer_adjustment $layer $scaled_adjustment
     }
-    set_global_routing_layer_adjustment $layer $scaled_adjustment
+
+    set route_guide_attempt [make_result_file ${design}_${platform}.route_guide.a${attempt_idx}]
+    puts "Global route attempt $attempt_idx with layer-adjustment scale $scale"
+
+    set t_gr [clock microseconds]
+    set rc [catch {
+      global_route -guide_file $route_guide_attempt \
+        -congestion_iterations 100 -verbose
+    } route_result]
+    set t_gr_end [clock microseconds]
+    set gr_elapsed [expr {($t_gr_end - $t_gr) / 1000000.0}]
+    puts "CODESIGN_TIMING phase=global_route_attempt_$attempt_idx elapsed_sec=$gr_elapsed"
+
+    if {$rc == 0} {
+      if {$route_guide_attempt ne $route_guide} {
+        file copy -force $route_guide_attempt $route_guide
+      }
+      set route_success 1
+      break
+    }
+
+    set route_error $route_result
+    puts "Global route attempt $attempt_idx failed: $route_error"
   }
 
-  set route_guide_attempt [make_result_file ${design}_${platform}.route_guide.a${attempt_idx}]
-  puts "Global route attempt $attempt_idx with layer-adjustment scale $scale"
-
-  set rc [catch {
-    global_route -guide_file $route_guide_attempt \
-      -congestion_iterations 100 -verbose
-  } route_result]
-
-  if {$rc == 0} {
-    if {$route_guide_attempt ne $route_guide} {
-      file copy -force $route_guide_attempt $route_guide
-    }
-    set route_success 1
-    break
+  if {!$route_success} {
+    puts "Global route failed after [llength $route_attempt_scales] attempts. Last error: $route_error"
+    puts "Continuing without final verilog/def export; codesign_top.tcl will still run a layout snapshot."
+    set ::codesign_flow_ok 0
+    return
   }
-
-  set route_error $route_result
-  puts "Global route attempt $attempt_idx failed: $route_error"
-}
-
-if {!$route_success} {
-  puts "Global route failed after [llength $route_attempt_scales] attempts. Last error: $route_error"
-  puts "Continuing without final verilog/def export; codesign_top.tcl will still run a layout snapshot."
-  set ::codesign_flow_ok 0
-  return
 }
 
 set verilog_file [make_result_file ${design}_${platform}.v]

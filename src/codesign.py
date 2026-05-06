@@ -1403,6 +1403,14 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint_save_dir", type=str, help="directory to save checkpoint")
     parser.add_argument("--checkpoint_start_step", type=str, help="checkpoint step to resume from (the flow will start normal execution AFTER this step)")
     parser.add_argument("--always_run_openroad", type=bool, help="always run openroad, even if max rsc reached")
+    parser.add_argument(
+        "--use_hierarchical_placer",
+        type=bool,
+        default=None,
+        help="If True, run the Python hierarchical macro placer and source hierarchical_placement.tcl in OpenROAD; "
+        "if False, remove any stale hierarchical_placement.tcl and use rtl_macro_placer. "
+        "Default None: do not override — use the value from merged YAML/config (otherwise treat as True).",
+    )
     parser.add_argument("--stop_at_checkpoint", type=str, help="checkpoint step to stop at (will complete this step and then stop)")
     parser.add_argument("--workload_size", type=int, help="workload size to use, such as the dimension of the matrix for gemm. Only applies to certain benchmarks")
     parser.add_argument("--opt_pipeline", type=str, help="optimization pipeline to use for inverse pass")

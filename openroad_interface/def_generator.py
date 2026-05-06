@@ -9,6 +9,7 @@ import logging
 
 from .openroad_functions import find_val_two, find_val_xy, find_val, value, format, clean
 from openroad_interface import openroad_run
+from . import macro_variant_assign
 
 design = "codesign"
 
@@ -194,6 +195,16 @@ class DefGenerator:
 
         return result
 
+    @staticmethod
+    def _propagate_function_to_variant_macros(macro_dict: dict) -> None:
+        """Copy macro_dict[base]['function'] onto Add16__lo / Add16__hi etc. for lib_cell_generator."""
+        for name in list(macro_dict.keys()):
+            if not (name.endswith("__lo") or name.endswith("__hi")):
+                continue
+            base = name.rsplit("__", 1)[0]
+            base_data = macro_dict.get(base)
+            if base_data and "function" in base_data:
+                macro_dict[name]["function"] = base_data["function"]
 
     def run_def_generator(self, test_file: str, graph: nx.DiGraph): 
         '''
@@ -452,9 +463,33 @@ class DefGenerator:
                 input_dict[node].append(new_node)
                 input_dict[node].remove(target_node2)
                 input_dict[node].remove(target_node1)
-                counter += 1 
-            
-        
+                counter += 1
+
+        if mux in macro_dict and "function" not in macro_dict[mux]:
+            macro_dict[mux]["function"] = mux
+        self._propagate_function_to_variant_macros(macro_dict)
+
+        core_aspect_hw = None
+        if (
+            core_coord_x1 is not None
+            and core_coord_x2 is not None
+            and core_coord_y1 is not None
+            and core_coord_y2 is not None
+        ):
+            cw = float(core_coord_x2) - float(core_coord_x1)
+            ch = float(core_coord_y2) - float(core_coord_y1)
+            if cw > 1e-12:
+                core_aspect_hw = ch / cw
+
+        macro_variant_assign.assign_macro_variants(
+            old_graph,
+            node_to_macro,
+            macro_dict,
+            macro_size_dict,
+            core_aspect_hw,
+            self.cfg,
+        )
+
         ### 3.generate header ###
         header_text = []
         header_text.append("VERSION 5.8 ;")
